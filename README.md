@@ -1,3 +1,39 @@
+## BLAKE3 Parallel WASM Browser Benchmark
+
+**Peak Performance (i9-9900K, Chrome):**
+| Implementation | Peak Throughput | Notes |
+|---------------|-----------------|-------|
+| BLAKE3 Native (Rayon) | 4.3 GB/s | Node.js with @napi-rs/blake-hash |
+| BLAKE3 WASM Parallel | 2.86 GB/s | Browser with 16 Web Workers + SharedArrayBuffer |
+| BLAKE3 WASM Single | 703 MB/s | Single-threaded WebAssembly |
+| SHA-256 (Node.js sync) | 556 MB/s | crypto.createHash |
+| SHA-256 (WebCrypto) | 131 MB/s | Browser crypto.subtle.digest |
+
+### Run Browser Benchmark (Parallel WASM)
+```bash
+cd potential-guacamole
+node candidates/blake3-browser-benchmark/server.js
+# Open http://localhost:3000 in Chrome
+```
+Requires SharedArrayBuffer (server sets COOP/COEP headers).
+
+### Run Node.js Benchmarks
+```bash
+# Native BLAKE3 vs SHA-256 scaling
+node candidates/blake3-scaling-complete/benchmark.js
+
+# Single-threaded WASM
+node candidates/blake3-single/benchmark.js
+```
+
+### Files Added
+- `blake3-wasm-rayon/` - Rust WASM with wasm-bindgen-rayon (parallel)
+- `blake3-wasm-single/` - Rust WASM single-threaded
+- `candidates/blake3-browser-benchmark/` - Browser benchmark + server
+- `candidates/blake3-scaling-complete/` - Comprehensive Node.js benchmark + chart
+- `candidates/blake3-native-scaling/` - Native vs SHA-256 comparison
+
+---
 
 --- after-the-bounty followups:
 
