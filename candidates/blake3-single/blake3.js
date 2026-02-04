@@ -1,18 +1,19 @@
-"use strict";
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 
-const path = require("node:path");
+const require = createRequire(import.meta.url);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let wasmPkg = null;
 
 function ensureInit() {
   if (wasmPkg) return;
-  const pkgPath = path.resolve(__dirname, "../../blake3-wasm-single/pkg");
+  const pkgPath = resolve(__dirname, "../../blake3-wasm-single/pkg");
   wasmPkg = require(pkgPath);
 }
 
-function hash(inputU8) {
+export function hash(inputU8) {
   ensureInit();
   return wasmPkg.hash(inputU8);
 }
-
-module.exports = { hash };
