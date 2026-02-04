@@ -28,22 +28,34 @@ function waitForMsgType(target, type) {
   });
 }
 
-// Only run worker initialization code if we're actually in a Worker context
-// (has addEventListener on self). This allows the module to be imported
-// from the main thread in Node.js without errors.
-const isWorkerContext = typeof self !== 'undefined' &&
-                        typeof self.addEventListener === 'function' &&
-                        typeof WorkerGlobalScope !== 'undefined';
-
-if (isWorkerContext) {
-  waitForMsgType(self, 'wasm_bindgen_worker_init').then(async ({ init, receiver }) => {
-    // Import the main module explicitly (browsers don't support directory imports)
-    const pkg = await import('../../../blake3_wasm_rayon.js');
-    await pkg.default(init);
-    postMessage({ type: 'wasm_bindgen_worker_ready' });
-    pkg.wbg_rayon_start_worker(receiver);
-  });
-}
+waitForMsgType(self, 'wasm_bindgen_worker_init').then(async ({ init, receiver }) => {
+  // # Note 1
+  // Our JS should have been generated in
+  // `[out-dir]/snippets/wasm-bindgen-rayon-[hash]/workerHelpers.js`,
+  // resolve the main module via `../../..`.
+  //
+  // This might need updating if the generated structure changes on wasm-bindgen
+  // side ever in the future, but works well with bundlers today. The whole
+  // point of this crate, after all, is to abstract away unstable features
+  // and temporary bugs so that you don't need to deal with them in your code.
+  //
+  // # Note 2
+  // This could be a regular import, but then some bundlers complain about
+  // circular deps.
+  //
+  // Dynamic import could be cheap if this file was inlined into the parent,
+  // which would require us just using `../../..` in `new Worker` below,
+  // but that doesn't work because wasm-pack unconditionally adds
+  // "sideEffects":false (see below).
+  //
+  // OTOH, even though it can't be inlined, it should be still reasonably
+  // cheap since the requested file is already in cache (it was loaded by
+  // the main thread).
+  const pkg = await import('../../../blake3_wasm_rayon.js');
+  await pkg.default(init);
+  postMessage({ type: 'wasm_bindgen_worker_ready' });
+  pkg.wbg_rayon_start_worker(receiver);
+});
 
 // Note: this is never used, but necessary to prevent a bug in Firefox
 // (https://bugzilla.mozilla.org/show_bug.cgi?id=1702191) where it collects

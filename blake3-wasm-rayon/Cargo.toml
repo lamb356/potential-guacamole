@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 wasm-bindgen = "0.2"
 rayon = "1.8"
 wasm-bindgen-rayon = "1.3"
-blake3 = { version = "1", features = ["rayon"] }
+blake3 = { version = "1", features = ["rayon", "wasm32_simd"] }
 
 [profile.release]
 lto = true
