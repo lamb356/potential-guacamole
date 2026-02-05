@@ -1,11 +1,12 @@
 /**
  * BLAKE3 vs SHA-256 Benchmark
  *
- * Four implementations:
+ * Five implementations:
  * 1. Native SHA-256 (Node.js crypto/OpenSSL)
  * 2. WebCrypto SHA-256 (browser API)
- * 3. Native BLAKE3 (@napi-rs/blake-hash)
- * 4. WASM BLAKE3 Adaptive (SIMD always + multithreading at ≥64KB)
+ * 3. Native BLAKE3 1T (@napi-rs/blake-hash, single-threaded)
+ * 4. Native BLAKE3 Rayon (custom addon with update_rayon, multi-threaded)
+ * 5. WASM BLAKE3 Adaptive (SIMD always + multithreading at ≥64KB)
  *
  * Key insight: Portable WASM BLAKE3 beats native SHA-256 at all sizes.
  *
@@ -103,7 +104,25 @@ try {
   console.log('  ✗ Native BLAKE3:', err.message);
 }
 
-// 4. WASM BLAKE3 Adaptive (SIMD always + multithreading at ≥64KB)
+// 4. Native BLAKE3 with Rayon (custom addon, multi-threaded via update_rayon)
+try {
+  const blake3Rayon = require('./blake3-native-parallel');
+  const hash = (data) => blake3Rayon.hash(data);
+  hash(new Uint8Array(64)); // Test
+  const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
+  loaded.push({
+    name: `Native BLAKE3 (Rayon)`,
+    shortName: 'blake3-native-rayon',
+    color: '#059669',  // Teal/dark green to differentiate from 1T
+    hash,
+    isAsync: false
+  });
+  console.log(`  ✓ Native BLAKE3 Rayon (multi-threaded, update_rayon)`);
+} catch (err) {
+  console.log('  ✗ Native BLAKE3 Rayon:', err.message);
+}
+
+// 5. WASM BLAKE3 Adaptive (SIMD always + multithreading at ≥64KB)
 try {
   // Load single-threaded SIMD
   const singlePkgPath = resolve(__dirname, 'blake3-wasm-single/pkg');

@@ -98,6 +98,11 @@
       </div>
     
       <div class="legend-item">
+        <div class="legend-color" style="background: #059669"></div>
+        <span class="legend-label">Native BLAKE3 (Rayon)</span>
+      </div>
+    
+      <div class="legend-item">
         <div class="legend-color" style="background: #3b82f6"></div>
         <span class="legend-label">WASM BLAKE3 (8T)</span>
       </div>
@@ -117,41 +122,41 @@
     <thead>
       <tr>
         <th>Input Size</th>
-        <th>Native SHA-256</th><th>WebCrypto SHA-256</th><th>Native BLAKE3 (1T)</th><th>WASM BLAKE3 (8T)</th>
+        <th>Native SHA-256</th><th>WebCrypto SHA-256</th><th>Native BLAKE3 (1T)</th><th>Native BLAKE3 (Rayon)</th><th>WASM BLAKE3 (8T)</th>
       </tr>
     </thead>
     <tbody>
       <tr>
           <td>64 bytes</td>
-          <td class="">30</td><td class="">3</td><td class="">48</td><td class="winner">225</td>
+          <td class="">31</td><td class="">3</td><td class="">47</td><td class="">44</td><td class="winner">243</td>
         </tr><tr>
           <td>256 bytes</td>
-          <td class="">114</td><td class="">11</td><td class="">174</td><td class="winner">609</td>
+          <td class="">116</td><td class="">12</td><td class="">174</td><td class="">142</td><td class="winner">596</td>
         </tr><tr>
           <td>1 KB</td>
-          <td class="">295</td><td class="">43</td><td class="">494</td><td class="winner">794</td>
+          <td class="">251</td><td class="">42</td><td class="">490</td><td class="">463</td><td class="winner">873</td>
         </tr><tr>
           <td>4 KB</td>
-          <td class="">439</td><td class="">137</td><td class="">1,453</td><td class="winner">1,532</td>
+          <td class="">454</td><td class="">136</td><td class="winner">1,446</td><td class="">1,363</td><td class="winner">1,503</td>
         </tr><tr>
           <td>16 KB</td>
-          <td class="">529</td><td class="">302</td><td class="winner">3,206</td><td class="">1,666</td>
+          <td class="">528</td><td class="">304</td><td class="winner">3,226</td><td class="">696</td><td class="">1,462</td>
         </tr><tr>
           <td>64 KB</td>
-          <td class="">553</td><td class="">441</td><td class="winner">4,092</td><td class="">2,469</td>
+          <td class="">536</td><td class="">447</td><td class="winner">3,852</td><td class="">2,953</td><td class="">2,551</td>
         </tr><tr>
           <td>256 KB</td>
-          <td class="">560</td><td class="">511</td><td class="">4,350</td><td class="winner">4,642</td>
+          <td class="">550</td><td class="">511</td><td class="">4,364</td><td class="winner">11,425</td><td class="">4,923</td>
         </tr><tr>
           <td>1 MB</td>
-          <td class="">539</td><td class="">490</td><td class="">4,480</td><td class="winner">5,289</td>
+          <td class="">557</td><td class="">491</td><td class="">4,494</td><td class="winner">21,410</td><td class="">5,073</td>
         </tr>
     </tbody>
   </table>
 
   <script>
     const sizeLabels = ["64 bytes","256 bytes","1 KB","4 KB","16 KB","64 KB","256 KB","1 MB"];
-    const datasets = [{"label":"Native SHA-256","data":[30,114,295,439,529,553,560,539],"backgroundColor":"#4a4458","borderColor":"#4a4458","borderWidth":2},{"label":"WebCrypto SHA-256","data":[3,11,43,137,302,441,511,490],"backgroundColor":"#6b6280","borderColor":"#6b6280","borderWidth":2},{"label":"Native BLAKE3 (1T)","data":[48,174,494,1453,3206,4092,4350,4480],"backgroundColor":"#22c55e","borderColor":"#22c55e","borderWidth":2},{"label":"WASM BLAKE3 (8T)","data":[225,609,794,1532,1666,2469,4642,5289],"backgroundColor":"#3b82f6","borderColor":"#3b82f6","borderWidth":2}];
+    const datasets = [{"label":"Native SHA-256","data":[31,116,251,454,528,536,550,557],"backgroundColor":"#4a4458","borderColor":"#4a4458","borderWidth":2},{"label":"WebCrypto SHA-256","data":[3,12,42,136,304,447,511,491],"backgroundColor":"#6b6280","borderColor":"#6b6280","borderWidth":2},{"label":"Native BLAKE3 (1T)","data":[47,174,490,1446,3226,3852,4364,4494],"backgroundColor":"#22c55e","borderColor":"#22c55e","borderWidth":2},{"label":"Native BLAKE3 (Rayon)","data":[44,142,463,1363,696,2953,11425,21410],"backgroundColor":"#059669","borderColor":"#059669","borderWidth":2},{"label":"WASM BLAKE3 (8T)","data":[243,596,873,1503,1462,2551,4923,5073],"backgroundColor":"#3b82f6","borderColor":"#3b82f6","borderWidth":2}];
 
     const chartOptions = {
       responsive: true,
