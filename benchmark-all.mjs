@@ -19,7 +19,8 @@ import { createRequire } from 'module';
 import { performance } from 'perf_hooks';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, resolve } from 'path';
-import { writeFileSync, readFileSync } from 'fs';
+import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs';
+import { execSync } from 'child_process';
 import os from 'os';
 
 const require = createRequire(import.meta.url);
@@ -46,11 +47,61 @@ const sizes = [
 // Threshold for parallel vs single-threaded
 const PARALLEL_THRESHOLD = 65536; // 64KB
 
+// === System Info Capture (following smalloc pattern) ===
+function execSafe(cmd) {
+  try {
+    return execSync(cmd, { encoding: 'utf8', cwd: __dirname }).trim();
+  } catch {
+    return 'Unknown';
+  }
+}
+
+function getSystemInfo() {
+  const timestamp = new Date().toISOString();
+
+  // Git info
+  const gitSource = execSafe('git remote get-url origin');
+  const gitCommit = execSafe('git rev-parse HEAD');
+  const gitStatusOutput = execSafe('git status --porcelain');
+  const gitCleanStatus = gitStatusOutput === '' || gitStatusOutput === 'Unknown'
+    ? 'Clean'
+    : 'Uncommitted changes';
+
+  // System info
+  const cpuType = os.cpus()[0]?.model || 'Unknown';
+  const osType = os.type();
+  const cpuCount = os.cpus().length;
+
+  return {
+    TIMESTAMP: timestamp,
+    GITSOURCE: gitSource,
+    GITCOMMIT: gitCommit,
+    GITCLEANSTATUS: gitCleanStatus,
+    CPUTYPE: cpuType,
+    OSTYPE: osType,
+    CPUCOUNT: cpuCount
+  };
+}
+
+const systemInfo = getSystemInfo();
+
 // Load implementations
 console.log('╔══════════════════════════════════════════════════════════════╗');
 console.log('║  BLAKE3 vs SHA-256: Portable Code Beats Native               ║');
 console.log('╚══════════════════════════════════════════════════════════════╝');
 console.log('');
+
+// Display system info
+console.log('System Info:');
+console.log(`  TIMESTAMP:       ${systemInfo.TIMESTAMP}`);
+console.log(`  GITSOURCE:       ${systemInfo.GITSOURCE}`);
+console.log(`  GITCOMMIT:       ${systemInfo.GITCOMMIT.substring(0, 12)}...`);
+console.log(`  GITCLEANSTATUS:  ${systemInfo.GITCLEANSTATUS}`);
+console.log(`  CPUTYPE:         ${systemInfo.CPUTYPE}`);
+console.log(`  OSTYPE:          ${systemInfo.OSTYPE}`);
+console.log(`  CPUCOUNT:        ${systemInfo.CPUCOUNT}`);
+console.log('');
+
 console.log('Loading implementations...');
 
 const loaded = [];
@@ -282,7 +333,7 @@ if (sha && blake) {
 
 // Save results
 const output = {
-  timestamp: new Date().toISOString(),
+  system: systemInfo,
   platform: process.platform,
   arch: process.arch,
   nodeVersion: process.version,
@@ -295,6 +346,55 @@ const output = {
 writeFileSync(resolve(__dirname, 'results.json'), JSON.stringify(output, null, 2));
 console.log('');
 console.log('Results saved to: results.json');
+
+// Save to bench/results/{CPUTYPE}.{OSTYPE}/benchmark.result.txt (following smalloc pattern)
+const safeCpuType = systemInfo.CPUTYPE.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
+const safeOsType = systemInfo.OSTYPE.replace(/[^a-zA-Z0-9-_]/g, '_');
+const resultsDir = resolve(__dirname, 'bench', 'results', `${safeCpuType}.${safeOsType}`);
+
+if (!existsSync(resultsDir)) {
+  mkdirSync(resultsDir, { recursive: true });
+}
+
+// Generate text results file
+let textResults = `BLAKE3 vs SHA-256 Benchmark Results
+${'='.repeat(50)}
+
+TIMESTAMP:       ${systemInfo.TIMESTAMP}
+GITSOURCE:       ${systemInfo.GITSOURCE}
+GITCOMMIT:       ${systemInfo.GITCOMMIT}
+GITCLEANSTATUS:  ${systemInfo.GITCLEANSTATUS}
+CPUTYPE:         ${systemInfo.CPUTYPE}
+OSTYPE:          ${systemInfo.OSTYPE}
+CPUCOUNT:        ${systemInfo.CPUCOUNT}
+
+${'='.repeat(50)}
+RESULTS (Throughput in MB/s)
+${'='.repeat(50)}
+
+`;
+
+// Add header
+let textHeader = 'Input Size  ';
+for (const impl of loaded) {
+  textHeader += impl.shortName.substring(0, 14).padStart(15);
+}
+textResults += textHeader + '\n';
+textResults += '-'.repeat(textHeader.length) + '\n';
+
+// Add results rows
+for (const size of sizes) {
+  let row = size.name.padEnd(12);
+  for (const impl of loaded) {
+    const val = results[impl.shortName]?.[size.name] || 0;
+    row += val.toString().padStart(15);
+  }
+  textResults += row + '\n';
+}
+
+const textResultsPath = resolve(resultsDir, 'benchmark.result.txt');
+writeFileSync(textResultsPath, textResults);
+console.log(`Results saved to: bench/results/${safeCpuType}.${safeOsType}/benchmark.result.txt`);
 
 // Generate chart HTML
 const sizeLabels = sizes.map(s => s.name);
