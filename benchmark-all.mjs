@@ -1,12 +1,11 @@
 /**
  * BLAKE3 vs SHA-256 Benchmark
  *
- * Five implementations:
+ * Four implementations:
  * 1. Native SHA-256 (Node.js crypto/OpenSSL)
  * 2. WebCrypto SHA-256 (browser API)
- * 3. Native BLAKE3 1T (@napi-rs/blake-hash, single-threaded)
- * 4. Native BLAKE3 Rayon (custom addon with update_rayon, multi-threaded)
- * 5. WASM BLAKE3 Adaptive (SIMD always + multithreading at ≥64KB)
+ * 3. WASM BLAKE3 (adaptive: single-threaded SIMD or parallel based on calibration)
+ * 4. Native BLAKE3 (adaptive: update() for small, update_rayon() for large)
  *
  * Key insight: Portable WASM BLAKE3 beats native SHA-256 at all sizes.
  *
@@ -44,8 +43,8 @@ const sizes = [
   { name: '1 MB', bytes: 1048576, iterations: 100 },
 ];
 
-// Note: Parallel WASM was slower than single-threaded on high-core machines (EPYC 9754)
-// so we only use single-threaded SIMD for WASM BLAKE3
+// Adaptive threshold for switching from single to parallel
+const PARALLEL_THRESHOLD = 65536; // 64KB
 
 // === System Info Capture (following smalloc pattern) ===
 function execSafe(cmd) {
@@ -81,6 +80,21 @@ function getSystemInfo() {
     OSTYPE: osType,
     CPUCOUNT: cpuCount
   };
+}
+
+// Quick calibration: hash 256KB N times and return throughput
+function calibrate(hashFn, size = 262144, iterations = 20) {
+  const data = new Uint8Array(size);
+  for (let i = 0; i < size; i++) data[i] = i & 0xff;
+
+  // Warmup
+  for (let i = 0; i < 5; i++) hashFn(data);
+
+  const start = performance.now();
+  for (let i = 0; i < iterations; i++) hashFn(data);
+  const elapsed = performance.now() - start;
+
+  return Math.round((size * iterations / 1024 / 1024) / (elapsed / 1000));
 }
 
 const systemInfo = getSystemInfo();
@@ -138,65 +152,108 @@ try {
   console.log(`  ⚠ Skipping WebCrypto SHA-256: ${err.message}`);
 }
 
-// 3. Native BLAKE3 (@napi-rs/blake-hash) - single-threaded, no rayon
+// 3. WASM BLAKE3 (adaptive: calibrate to pick single vs parallel for large inputs)
 try {
-  const blakeHash = require('./preexisting/blake-hash');
-  const hash = (data) => blakeHash.blake3(data);
-  hash(new Uint8Array(64)); // Test
-  loaded.push({
-    name: 'Native BLAKE3 (1T)',
-    shortName: 'blake3-native',
-    color: '#22c55e',
-    hash,
-    isAsync: false
-  });
-  console.log('  ✓ Native BLAKE3 (single-threaded, @napi-rs/blake-hash)');
-} catch (err) {
-  console.log(`  ⚠ Skipping Native BLAKE3 (1T): ${err.message}`);
-}
-
-// 4. Native BLAKE3 with Rayon (custom addon, multi-threaded via update_rayon)
-try {
-  const blake3Rayon = require('./blake3-native-parallel');
-  const hash = (data) => blake3Rayon.hash(data);
-  hash(new Uint8Array(64)); // Test
-  const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
-  loaded.push({
-    name: `Native BLAKE3 (Rayon)`,
-    shortName: 'blake3-native-rayon',
-    color: '#059669',  // Teal/dark green to differentiate from 1T
-    hash,
-    isAsync: false
-  });
-  console.log(`  ✓ Native BLAKE3 Rayon (multi-threaded, update_rayon)`);
-} catch (err) {
-  console.log(`  ⚠ Skipping Native BLAKE3 (Rayon): ${err.message}`);
-}
-
-// 5. WASM BLAKE3 (single-threaded SIMD only - fastest on all tested hardware)
-try {
+  // Load single-threaded SIMD
   const singlePkgPath = resolve(__dirname, 'blake3-wasm-single/pkg');
   const singleMod = require(singlePkgPath);
 
-  // Warmup
-  const warmup = new Uint8Array(1024);
-  for (let i = 0; i < 50; i++) {
-    singleMod.hash(warmup);
+  // Try to load parallel WASM
+  let parallelMod = null;
+  let useParallel = false;
+
+  try {
+    const shimPath = resolve(__dirname, 'blake3-wasm-rayon/node-worker-shim.mjs');
+    await import(pathToFileURL(shimPath).href);
+
+    const parallelPkgPath = resolve(__dirname, 'blake3-wasm-rayon/pkg/blake3_wasm_rayon.js');
+    const parallelWasmPath = resolve(__dirname, 'blake3-wasm-rayon/pkg/blake3_wasm_rayon_bg.wasm');
+    parallelMod = await import(pathToFileURL(parallelPkgPath).href);
+
+    const wasmBytes = readFileSync(parallelWasmPath);
+    const wasmModule = await WebAssembly.compile(wasmBytes);
+    await parallelMod.default({ module_or_path: wasmModule });
+
+    // Cap threads at 8
+    const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
+    const threadCount = Math.min(physicalCores, 8);
+    await parallelMod.initThreadPool(threadCount);
+
+    // Calibrate: compare single vs parallel at 256KB
+    console.log('  ... calibrating WASM (single vs parallel)...');
+    const singleSpeed = calibrate((d) => singleMod.hash(d));
+    const parallelSpeed = calibrate((d) => parallelMod.hash(d));
+
+    if (parallelSpeed > singleSpeed * 1.1) {
+      useParallel = true;
+      console.log(`  ... parallel is faster (${parallelSpeed} vs ${singleSpeed} MB/s)`);
+    } else {
+      console.log(`  ... single-threaded is faster (${singleSpeed} vs ${parallelSpeed} MB/s)`);
+    }
+  } catch (e) {
+    console.log(`  ... parallel WASM not available: ${e.message}`);
   }
 
-  const hash = (data) => singleMod.hash(data);
+  // Warmup
+  const warmup = new Uint8Array(1024);
+  for (let i = 0; i < 50; i++) singleMod.hash(warmup);
+
+  // Adaptive hash function
+  const hash = useParallel
+    ? (data) => data.length < PARALLEL_THRESHOLD ? singleMod.hash(data) : parallelMod.hash(data)
+    : (data) => singleMod.hash(data);
 
   hash(new Uint8Array(64)); // Test
   loaded.push({
-    name: 'WASM BLAKE3 (SIMD)',
+    name: useParallel ? 'WASM BLAKE3 (adaptive)' : 'WASM BLAKE3 (SIMD)',
     shortName: 'blake3-wasm',
     color: '#3b82f6',
     hash,
     isAsync: false
   });
-  console.log('  ✓ WASM BLAKE3 (SIMD, single-threaded)');
+  console.log(`  ✓ WASM BLAKE3 (${useParallel ? 'adaptive: SIMD + parallel' : 'SIMD only'})`);
 } catch (err) {
   console.log(`  ⚠ Skipping WASM BLAKE3: ${err.message}`);
+}
+
+// 4. Native BLAKE3 (adaptive: hash_single for small, hash_rayon for large)
+try {
+  const blake3Native = require('./blake3-native-parallel');
+
+  // Configure thread pool (cap at 8)
+  const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
+  const threadCount = Math.min(physicalCores, 8);
+  blake3Native.setThreadCount(threadCount);
+
+  // Calibrate: compare single vs rayon at 256KB
+  console.log('  ... calibrating Native BLAKE3 (single vs rayon)...');
+  const singleSpeed = calibrate((d) => blake3Native.hashSingle(d));
+  const rayonSpeed = calibrate((d) => blake3Native.hashRayon(d));
+
+  let useRayon = false;
+  if (rayonSpeed > singleSpeed * 1.1) {
+    useRayon = true;
+    console.log(`  ... rayon is faster (${rayonSpeed} vs ${singleSpeed} MB/s)`);
+  } else {
+    console.log(`  ... single-threaded is faster (${singleSpeed} vs ${rayonSpeed} MB/s)`);
+  }
+
+  // Adaptive hash function
+  const hash = useRayon
+    ? (data) => data.length < PARALLEL_THRESHOLD ? blake3Native.hashSingle(data) : blake3Native.hashRayon(data)
+    : (data) => blake3Native.hashSingle(data);
+
+  hash(new Uint8Array(64)); // Test
+  loaded.push({
+    name: useRayon ? 'Native BLAKE3 (adaptive)' : 'Native BLAKE3 (1T)',
+    shortName: 'blake3-native',
+    color: '#22c55e',
+    hash,
+    isAsync: false
+  });
+  console.log(`  ✓ Native BLAKE3 (${useRayon ? 'adaptive: 1T + rayon' : '1T only'})`);
+} catch (err) {
+  console.log(`  ⚠ Skipping Native BLAKE3: ${err.message}`);
 }
 
 if (loaded.length === 0) {

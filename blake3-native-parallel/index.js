@@ -310,6 +310,8 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { hash } = nativeBinding
+const { hashSingle, hashRayon, setThreadCount } = nativeBinding
 
-module.exports.hash = hash
+module.exports.hashSingle = hashSingle
+module.exports.hashRayon = hashRayon
+module.exports.setThreadCount = setThreadCount
