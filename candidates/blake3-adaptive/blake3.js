@@ -1,12 +1,11 @@
 /**
- * Adaptive BLAKE3 - Automatically picks the fastest implementation
+ * Adaptive BLAKE3 - Uses single-threaded SIMD for all practical sizes
  *
- * Based on benchmark data:
- * - Input < 64KB: Single-threaded SIMD (avoids thread overhead)
- * - Input ≥ 64KB: Parallel SIMD (parallelism pays off)
+ * Based on benchmark data from high-core-count machines (EPYC 9754):
+ * Single-threaded SIMD is faster than parallel at all practical sizes.
+ * Thread coordination overhead outweighs parallelism benefits.
  *
- * Both implementations use WASM SIMD - the parallel version just adds
- * multithreading on top for large inputs where it helps.
+ * Threshold set to 16MB to effectively always use single-threaded SIMD.
  */
 
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -18,8 +17,8 @@ import os from 'os';
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Threshold: below this, single-threaded wins; at or above, parallel wins
-const PARALLEL_THRESHOLD = 65536; // 64KB
+// Threshold: set very high so single-threaded SIMD is always used at practical sizes
+const PARALLEL_THRESHOLD = 16777216; // 16MB - effectively always single-threaded
 
 // === Load single-threaded SIMD implementation ===
 const singlePkgPath = resolve(__dirname, '../../blake3-wasm-single/pkg');
@@ -53,9 +52,7 @@ for (let i = 0; i < 50; i++) {
 }
 
 /**
- * Hash data using the optimal implementation based on input size.
- * - Small inputs (<64KB): Single-threaded SIMD
- * - Large inputs (≥64KB): Parallel SIMD
+ * Hash data using single-threaded SIMD (fastest for all practical sizes).
  *
  * @param {Uint8Array} inputU8 - Data to hash
  * @returns {Uint8Array} - 32-byte BLAKE3 hash

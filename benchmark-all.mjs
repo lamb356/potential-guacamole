@@ -45,7 +45,8 @@ const sizes = [
 ];
 
 // Threshold for parallel vs single-threaded
-const PARALLEL_THRESHOLD = 65536; // 64KB
+// Set very high so single-threaded SIMD is always used (faster on high-core machines)
+const PARALLEL_THRESHOLD = 16777216; // 16MB - effectively always single-threaded
 
 // === System Info Capture (following smalloc pattern) ===
 function execSafe(cmd) {
@@ -214,13 +215,13 @@ try {
 
   hash(new Uint8Array(64)); // Test
   loaded.push({
-    name: `WASM BLAKE3 (${threadCount}T)`,
+    name: 'WASM BLAKE3 (SIMD)',
     shortName: 'blake3-wasm',
     color: '#3b82f6',
     hash,
     isAsync: false
   });
-  console.log(`  ✓ WASM BLAKE3 Adaptive (SIMD + ${threadCount} threads at ≥64KB)`);
+  console.log('  ✓ WASM BLAKE3 (SIMD, single-threaded)');
 } catch (err) {
   console.log(`  ⚠ Skipping WASM BLAKE3 Adaptive: ${err.message}`);
 }
