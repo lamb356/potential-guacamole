@@ -1,115 +1,71 @@
 {
-  "timestamp": "2026-02-05T00:25:28.170Z",
+  "timestamp": "2026-02-05T01:14:48.538Z",
   "platform": "win32",
   "arch": "x64",
   "nodeVersion": "v24.11.0",
+  "title": "BLAKE3 vs SHA-256: Portable Code Beats Native",
   "implementations": [
     {
-      "name": "Native SHA256",
+      "name": "Native SHA-256",
       "shortName": "sha256-native",
-      "category": "native"
+      "color": "#4a4458"
+    },
+    {
+      "name": "WebCrypto SHA-256",
+      "shortName": "sha256-wc",
+      "color": "#6b6280"
     },
     {
       "name": "Native BLAKE3",
       "shortName": "blake3-native",
-      "category": "native"
+      "color": "#22c55e"
     },
     {
-      "name": "WebCrypto SHA256",
-      "shortName": "sha256-wc",
-      "category": "webcrypto"
-    },
-    {
-      "name": "WASM BLAKE3 (SIMD)",
-      "shortName": "blake3-wasm-simd",
-      "category": "wasm"
-    },
-    {
-      "name": "WASM BLAKE3 (Parallel)",
-      "shortName": "blake3-wasm-par",
-      "category": "wasm"
-    },
-    {
-      "name": "hash-wasm BLAKE3",
-      "shortName": "hash-wasm",
-      "category": "other"
-    },
-    {
-      "name": "blake3-fast",
-      "shortName": "blake3-fast",
-      "category": "other"
+      "name": "WASM BLAKE3",
+      "shortName": "blake3-wasm",
+      "color": "#3b82f6"
     }
   ],
   "results": {
     "sha256-native": {
-      "64 bytes": 30,
-      "256 bytes": 112,
-      "1 KB": 279,
-      "4 KB": 450,
-      "16 KB": 453,
-      "64 KB": 550,
-      "256 KB": 559,
-      "1 MB": 539
-    },
-    "blake3-native": {
-      "64 bytes": 45,
-      "256 bytes": 166,
-      "1 KB": 493,
-      "4 KB": 1305,
-      "16 KB": 3201,
-      "64 KB": 4098,
-      "256 KB": 4331,
-      "1 MB": 4358
+      "64 bytes": 32,
+      "256 bytes": 113,
+      "1 KB": 285,
+      "4 KB": 457,
+      "16 KB": 523,
+      "64 KB": 549,
+      "256 KB": 550,
+      "1 MB": 560
     },
     "sha256-wc": {
       "64 bytes": 3,
       "256 bytes": 11,
-      "1 KB": 40,
-      "4 KB": 135,
-      "16 KB": 298,
-      "64 KB": 447,
-      "256 KB": 507,
-      "1 MB": 495
+      "1 KB": 42,
+      "4 KB": 137,
+      "16 KB": 294,
+      "64 KB": 443,
+      "256 KB": 503,
+      "1 MB": 484
     },
-    "blake3-wasm-simd": {
-      "64 bytes": 178,
-      "256 bytes": 604,
-      "1 KB": 889,
-      "4 KB": 1513,
-      "16 KB": 1572,
-      "64 KB": 1627,
-      "256 KB": 1592,
-      "1 MB": 1576
+    "blake3-native": {
+      "64 bytes": 44,
+      "256 bytes": 145,
+      "1 KB": 478,
+      "4 KB": 1422,
+      "16 KB": 3208,
+      "64 KB": 4054,
+      "256 KB": 4260,
+      "1 MB": 4389
     },
-    "blake3-wasm-par": {
-      "64 bytes": 123,
-      "256 bytes": 435,
-      "1 KB": 785,
-      "4 KB": 1361,
-      "16 KB": 1036,
-      "64 KB": 3023,
-      "256 KB": 4917,
-      "1 MB": 5503
-    },
-    "hash-wasm": {
-      "64 bytes": 27,
-      "256 bytes": 102,
-      "1 KB": 283,
-      "4 KB": 464,
-      "16 KB": 560,
-      "64 KB": 677,
-      "256 KB": 690,
-      "1 MB": 662
-    },
-    "blake3-fast": {
-      "64 bytes": 157,
-      "256 bytes": 408,
-      "1 KB": 573,
-      "4 KB": 970,
-      "16 KB": 784,
-      "64 KB": 1154,
-      "256 KB": 1158,
-      "1 MB": 1158
+    "blake3-wasm": {
+      "64 bytes": 221,
+      "256 bytes": 515,
+      "1 KB": 863,
+      "4 KB": 1481,
+      "16 KB": 1467,
+      "64 KB": 2530,
+      "256 KB": 4191,
+      "1 MB": 4348
     }
   },
   "sizes": [

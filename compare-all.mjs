@@ -5,7 +5,6 @@
  * Run with: node --experimental-strip-types compare-all.mjs
  */
 
-import { blake3 as hashWasmBlake3 } from 'hash-wasm';
 import { createRequire } from 'module';
 import { performance } from 'perf_hooks';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -42,22 +41,6 @@ const implementations = [
       const mod = await importModule('./preexisting/WebCryptoAPI/wca_sha256.js');
       return { hash: mod.hash, async: true };
     }
-  },
-  {
-    name: 'hash-wasm',
-    category: 'preexisting',
-    loader: async () => ({
-      hash: async (data) => {
-        const hex = await hashWasmBlake3(data);
-        // Convert hex string to Uint8Array
-        const bytes = new Uint8Array(hex.length / 2);
-        for (let i = 0; i < hex.length; i += 2) {
-          bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-        }
-        return bytes;
-      },
-      async: true
-    })
   },
   {
     name: 'Bk3JS',
@@ -104,6 +87,14 @@ const implementations = [
     category: 'candidate',
     loader: async () => {
       const mod = await importModule('./candidates/blake3-rayon-node/blake3.js');
+      return { hash: mod.hash, async: false };
+    }
+  },
+  {
+    name: 'b3-adapt',
+    category: 'candidate',
+    loader: async () => {
+      const mod = await importModule('./candidates/blake3-adaptive/blake3.js');
       return { hash: mod.hash, async: false };
     }
   }
@@ -259,9 +250,9 @@ async function main() {
   console.log("`*` marks the fastest one, as well as any others within 10% of the fastest one");
   console.log('');
   console.log('Notes:');
-  console.log('- blake-hash (native BLAKE3) skipped - requires darwin-arm64 binary');
-  console.log('- blake3-si is single-threaded WASM with SIMD (wasm-bindgen)');
-  console.log('- b3-rayon is parallel WASM with SIMD (8 worker_threads, wasm-bindgen-rayon)');
+  console.log('- blake3-si is single-threaded WASM with SIMD');
+  console.log('- b3-rayon is parallel WASM with SIMD (8 worker_threads)');
+  console.log('- b3-adapt picks best: single-threaded <64KB, parallel >=64KB');
 }
 
 main().catch(err => {
