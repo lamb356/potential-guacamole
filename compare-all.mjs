@@ -98,6 +98,14 @@ const implementations = [
       const mod = await importModule('./candidates/blake3-single/blake3.js');
       return { hash: mod.hash, async: false };
     }
+  },
+  {
+    name: 'b3-rayon',
+    category: 'candidate',
+    loader: async () => {
+      const mod = await importModule('./candidates/blake3-rayon-node/blake3.js');
+      return { hash: mod.hash, async: false };
+    }
   }
 ];
 
@@ -252,9 +260,8 @@ async function main() {
   console.log('');
   console.log('Notes:');
   console.log('- blake-hash (native BLAKE3) skipped - requires darwin-arm64 binary');
-  console.log('- blake3-si is our single-threaded WASM implementation (wasm-bindgen)');
-  console.log('- Browser parallel version (blake3-wasm-rayon with 16 Web Workers)');
-  console.log('  achieves 2,855 MB/s at 1MB but requires browser + SharedArrayBuffer');
+  console.log('- blake3-si is single-threaded WASM with SIMD (wasm-bindgen)');
+  console.log('- b3-rayon is parallel WASM with SIMD (8 worker_threads, wasm-bindgen-rayon)');
 }
 
 main().catch(err => {

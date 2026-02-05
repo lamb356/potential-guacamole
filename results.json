@@ -1,0 +1,149 @@
+{
+  "timestamp": "2026-02-05T00:25:28.170Z",
+  "platform": "win32",
+  "arch": "x64",
+  "nodeVersion": "v24.11.0",
+  "implementations": [
+    {
+      "name": "Native SHA256",
+      "shortName": "sha256-native",
+      "category": "native"
+    },
+    {
+      "name": "Native BLAKE3",
+      "shortName": "blake3-native",
+      "category": "native"
+    },
+    {
+      "name": "WebCrypto SHA256",
+      "shortName": "sha256-wc",
+      "category": "webcrypto"
+    },
+    {
+      "name": "WASM BLAKE3 (SIMD)",
+      "shortName": "blake3-wasm-simd",
+      "category": "wasm"
+    },
+    {
+      "name": "WASM BLAKE3 (Parallel)",
+      "shortName": "blake3-wasm-par",
+      "category": "wasm"
+    },
+    {
+      "name": "hash-wasm BLAKE3",
+      "shortName": "hash-wasm",
+      "category": "other"
+    },
+    {
+      "name": "blake3-fast",
+      "shortName": "blake3-fast",
+      "category": "other"
+    }
+  ],
+  "results": {
+    "sha256-native": {
+      "64 bytes": 30,
+      "256 bytes": 112,
+      "1 KB": 279,
+      "4 KB": 450,
+      "16 KB": 453,
+      "64 KB": 550,
+      "256 KB": 559,
+      "1 MB": 539
+    },
+    "blake3-native": {
+      "64 bytes": 45,
+      "256 bytes": 166,
+      "1 KB": 493,
+      "4 KB": 1305,
+      "16 KB": 3201,
+      "64 KB": 4098,
+      "256 KB": 4331,
+      "1 MB": 4358
+    },
+    "sha256-wc": {
+      "64 bytes": 3,
+      "256 bytes": 11,
+      "1 KB": 40,
+      "4 KB": 135,
+      "16 KB": 298,
+      "64 KB": 447,
+      "256 KB": 507,
+      "1 MB": 495
+    },
+    "blake3-wasm-simd": {
+      "64 bytes": 178,
+      "256 bytes": 604,
+      "1 KB": 889,
+      "4 KB": 1513,
+      "16 KB": 1572,
+      "64 KB": 1627,
+      "256 KB": 1592,
+      "1 MB": 1576
+    },
+    "blake3-wasm-par": {
+      "64 bytes": 123,
+      "256 bytes": 435,
+      "1 KB": 785,
+      "4 KB": 1361,
+      "16 KB": 1036,
+      "64 KB": 3023,
+      "256 KB": 4917,
+      "1 MB": 5503
+    },
+    "hash-wasm": {
+      "64 bytes": 27,
+      "256 bytes": 102,
+      "1 KB": 283,
+      "4 KB": 464,
+      "16 KB": 560,
+      "64 KB": 677,
+      "256 KB": 690,
+      "1 MB": 662
+    },
+    "blake3-fast": {
+      "64 bytes": 157,
+      "256 bytes": 408,
+      "1 KB": 573,
+      "4 KB": 970,
+      "16 KB": 784,
+      "64 KB": 1154,
+      "256 KB": 1158,
+      "1 MB": 1158
+    }
+  },
+  "sizes": [
+    {
+      "name": "64 bytes",
+      "bytes": 64
+    },
+    {
+      "name": "256 bytes",
+      "bytes": 256
+    },
+    {
+      "name": "1 KB",
+      "bytes": 1024
+    },
+    {
+      "name": "4 KB",
+      "bytes": 4096
+    },
+    {
+      "name": "16 KB",
+      "bytes": 16384
+    },
+    {
+      "name": "64 KB",
+      "bytes": 65536
+    },
+    {
+      "name": "256 KB",
+      "bytes": 262144
+    },
+    {
+      "name": "1 MB",
+      "bytes": 1048576
+    }
+  ]
+}
