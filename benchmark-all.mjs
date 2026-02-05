@@ -44,9 +44,8 @@ const sizes = [
   { name: '1 MB', bytes: 1048576, iterations: 100 },
 ];
 
-// Threshold for parallel vs single-threaded
-// Set very high so single-threaded SIMD is always used (faster on high-core machines)
-const PARALLEL_THRESHOLD = 16777216; // 16MB - effectively always single-threaded
+// Note: Parallel WASM was slower than single-threaded on high-core machines (EPYC 9754)
+// so we only use single-threaded SIMD for WASM BLAKE3
 
 // === System Info Capture (following smalloc pattern) ===
 function execSafe(cmd) {
@@ -174,44 +173,18 @@ try {
   console.log(`  ⚠ Skipping Native BLAKE3 (Rayon): ${err.message}`);
 }
 
-// 5. WASM BLAKE3 Adaptive (SIMD always + multithreading at ≥64KB)
+// 5. WASM BLAKE3 (single-threaded SIMD only - fastest on all tested hardware)
 try {
-  // Load single-threaded SIMD
   const singlePkgPath = resolve(__dirname, 'blake3-wasm-single/pkg');
   const singleMod = require(singlePkgPath);
 
-  // Load parallel SIMD
-  const shimPath = resolve(__dirname, 'blake3-wasm-rayon/node-worker-shim.mjs');
-  await import(pathToFileURL(shimPath).href);
-
-  const parallelPkgPath = resolve(__dirname, 'blake3-wasm-rayon/pkg/blake3_wasm_rayon.js');
-  const parallelWasmPath = resolve(__dirname, 'blake3-wasm-rayon/pkg/blake3_wasm_rayon_bg.wasm');
-  const parallelMod = await import(pathToFileURL(parallelPkgPath).href);
-
-  const wasmBytes = readFileSync(parallelWasmPath);
-  const wasmModule = await WebAssembly.compile(wasmBytes);
-  await parallelMod.default({ module_or_path: wasmModule });
-
-  // Cap at 8 threads to avoid overhead on high-core-count machines
-  const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
-  const threadCount = Math.min(physicalCores, 8);
-  await parallelMod.initThreadPool(threadCount);
-
-  // Warmup both
+  // Warmup
   const warmup = new Uint8Array(1024);
   for (let i = 0; i < 50; i++) {
     singleMod.hash(warmup);
-    parallelMod.hash(warmup);
   }
 
-  // Adaptive hash function
-  const hash = (data) => {
-    if (data.length < PARALLEL_THRESHOLD) {
-      return singleMod.hash(data);
-    } else {
-      return parallelMod.hash(data);
-    }
-  };
+  const hash = (data) => singleMod.hash(data);
 
   hash(new Uint8Array(64)); // Test
   loaded.push({
@@ -223,7 +196,7 @@ try {
   });
   console.log('  ✓ WASM BLAKE3 (SIMD, single-threaded)');
 } catch (err) {
-  console.log(`  ⚠ Skipping WASM BLAKE3 Adaptive: ${err.message}`);
+  console.log(`  ⚠ Skipping WASM BLAKE3: ${err.message}`);
 }
 
 if (loaded.length === 0) {
