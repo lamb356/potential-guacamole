@@ -140,8 +140,10 @@ try {
   const wasmModule = await WebAssembly.compile(wasmBytes);
   await parallelMod.default({ module_or_path: wasmModule });
 
+  // Cap at 8 threads to avoid overhead on high-core-count machines
   const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
-  await parallelMod.initThreadPool(physicalCores);
+  const threadCount = Math.min(physicalCores, 8);
+  await parallelMod.initThreadPool(threadCount);
 
   // Warmup both
   const warmup = new Uint8Array(1024);
@@ -161,13 +163,13 @@ try {
 
   hash(new Uint8Array(64)); // Test
   loaded.push({
-    name: `WASM BLAKE3 (${physicalCores}T)`,
+    name: `WASM BLAKE3 (${threadCount}T)`,
     shortName: 'blake3-wasm',
     color: '#3b82f6',
     hash,
     isAsync: false
   });
-  console.log(`  ✓ WASM BLAKE3 Adaptive (SIMD + ${physicalCores} threads at ≥64KB)`);
+  console.log(`  ✓ WASM BLAKE3 Adaptive (SIMD + ${threadCount} threads at ≥64KB)`);
 } catch (err) {
   console.log(`  ⚠ Skipping WASM BLAKE3 Adaptive: ${err.message}`);
 }

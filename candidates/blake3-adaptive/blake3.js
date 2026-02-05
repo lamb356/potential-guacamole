@@ -40,9 +40,10 @@ const wasmBytes = readFileSync(parallelWasmPath);
 const wasmModule = await WebAssembly.compile(wasmBytes);
 await parallelMod.default({ module_or_path: wasmModule });
 
-// Initialize thread pool with physical cores
+// Initialize thread pool with physical cores, capped at 8 to avoid overhead on high-core machines
 const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
-await parallelMod.initThreadPool(physicalCores);
+const threadCount = Math.min(physicalCores, 8);
+await parallelMod.initThreadPool(threadCount);
 
 // Warmup both implementations
 const warmupData = new Uint8Array(1024);
