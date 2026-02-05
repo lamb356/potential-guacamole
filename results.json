@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-05T01:14:48.538Z",
+  "timestamp": "2026-02-05T01:29:59.814Z",
   "platform": "win32",
   "arch": "x64",
   "nodeVersion": "v24.11.0",
@@ -16,56 +16,56 @@
       "color": "#6b6280"
     },
     {
-      "name": "Native BLAKE3",
+      "name": "Native BLAKE3 (1T)",
       "shortName": "blake3-native",
       "color": "#22c55e"
     },
     {
-      "name": "WASM BLAKE3",
+      "name": "WASM BLAKE3 (8T)",
       "shortName": "blake3-wasm",
       "color": "#3b82f6"
     }
   ],
   "results": {
     "sha256-native": {
-      "64 bytes": 32,
-      "256 bytes": 113,
-      "1 KB": 285,
-      "4 KB": 457,
-      "16 KB": 523,
-      "64 KB": 549,
-      "256 KB": 550,
-      "1 MB": 560
+      "64 bytes": 30,
+      "256 bytes": 114,
+      "1 KB": 295,
+      "4 KB": 439,
+      "16 KB": 529,
+      "64 KB": 553,
+      "256 KB": 560,
+      "1 MB": 539
     },
     "sha256-wc": {
       "64 bytes": 3,
       "256 bytes": 11,
-      "1 KB": 42,
+      "1 KB": 43,
       "4 KB": 137,
-      "16 KB": 294,
-      "64 KB": 443,
-      "256 KB": 503,
-      "1 MB": 484
+      "16 KB": 302,
+      "64 KB": 441,
+      "256 KB": 511,
+      "1 MB": 490
     },
     "blake3-native": {
-      "64 bytes": 44,
-      "256 bytes": 145,
-      "1 KB": 478,
-      "4 KB": 1422,
-      "16 KB": 3208,
-      "64 KB": 4054,
-      "256 KB": 4260,
-      "1 MB": 4389
+      "64 bytes": 48,
+      "256 bytes": 174,
+      "1 KB": 494,
+      "4 KB": 1453,
+      "16 KB": 3206,
+      "64 KB": 4092,
+      "256 KB": 4350,
+      "1 MB": 4480
     },
     "blake3-wasm": {
-      "64 bytes": 221,
-      "256 bytes": 515,
-      "1 KB": 863,
-      "4 KB": 1481,
-      "16 KB": 1467,
-      "64 KB": 2530,
-      "256 KB": 4191,
-      "1 MB": 4348
+      "64 bytes": 225,
+      "256 bytes": 609,
+      "1 KB": 794,
+      "4 KB": 1532,
+      "16 KB": 1666,
+      "64 KB": 2469,
+      "256 KB": 4642,
+      "1 MB": 5289
     }
   },
   "sizes": [

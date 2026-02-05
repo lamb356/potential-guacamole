@@ -86,19 +86,19 @@ try {
   console.log('  ✗ WebCrypto SHA-256:', err.message);
 }
 
-// 3. Native BLAKE3 (@napi-rs/blake-hash)
+// 3. Native BLAKE3 (@napi-rs/blake-hash) - single-threaded, no rayon
 try {
   const blakeHash = require('./preexisting/blake-hash');
   const hash = (data) => blakeHash.blake3(data);
   hash(new Uint8Array(64)); // Test
   loaded.push({
-    name: 'Native BLAKE3',
+    name: 'Native BLAKE3 (1T)',
     shortName: 'blake3-native',
     color: '#22c55e',
     hash,
     isAsync: false
   });
-  console.log('  ✓ Native BLAKE3 (@napi-rs/blake-hash)');
+  console.log('  ✓ Native BLAKE3 (single-threaded, @napi-rs/blake-hash)');
 } catch (err) {
   console.log('  ✗ Native BLAKE3:', err.message);
 }
@@ -142,7 +142,7 @@ try {
 
   hash(new Uint8Array(64)); // Test
   loaded.push({
-    name: 'WASM BLAKE3',
+    name: `WASM BLAKE3 (${physicalCores}T)`,
     shortName: 'blake3-wasm',
     color: '#3b82f6',
     hash,
@@ -417,9 +417,16 @@ const chartHtml = `<!DOCTYPE html>
       },
       scales: {
         y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Throughput (MB/s)', color: '#94a3b8' },
-          ticks: { color: '#94a3b8' },
+          type: 'logarithmic',
+          min: 1,
+          title: { display: true, text: 'Throughput (MB/s) - Log Scale', color: '#94a3b8' },
+          ticks: {
+            color: '#94a3b8',
+            callback: function(value) {
+              if ([1, 10, 100, 1000, 10000].includes(value)) return value;
+              return '';
+            }
+          },
           grid: { color: '#334155' }
         },
         x: {

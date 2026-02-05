@@ -94,12 +94,12 @@
     
       <div class="legend-item">
         <div class="legend-color" style="background: #22c55e"></div>
-        <span class="legend-label">Native BLAKE3</span>
+        <span class="legend-label">Native BLAKE3 (1T)</span>
       </div>
     
       <div class="legend-item">
         <div class="legend-color" style="background: #3b82f6"></div>
-        <span class="legend-label">WASM BLAKE3</span>
+        <span class="legend-label">WASM BLAKE3 (8T)</span>
       </div>
     
   </div>
@@ -117,41 +117,41 @@
     <thead>
       <tr>
         <th>Input Size</th>
-        <th>Native SHA-256</th><th>WebCrypto SHA-256</th><th>Native BLAKE3</th><th>WASM BLAKE3</th>
+        <th>Native SHA-256</th><th>WebCrypto SHA-256</th><th>Native BLAKE3 (1T)</th><th>WASM BLAKE3 (8T)</th>
       </tr>
     </thead>
     <tbody>
       <tr>
           <td>64 bytes</td>
-          <td class="">32</td><td class="">3</td><td class="">44</td><td class="winner">221</td>
+          <td class="">30</td><td class="">3</td><td class="">48</td><td class="winner">225</td>
         </tr><tr>
           <td>256 bytes</td>
-          <td class="">113</td><td class="">11</td><td class="">145</td><td class="winner">515</td>
+          <td class="">114</td><td class="">11</td><td class="">174</td><td class="winner">609</td>
         </tr><tr>
           <td>1 KB</td>
-          <td class="">285</td><td class="">42</td><td class="">478</td><td class="winner">863</td>
+          <td class="">295</td><td class="">43</td><td class="">494</td><td class="winner">794</td>
         </tr><tr>
           <td>4 KB</td>
-          <td class="">457</td><td class="">137</td><td class="winner">1,422</td><td class="winner">1,481</td>
+          <td class="">439</td><td class="">137</td><td class="">1,453</td><td class="winner">1,532</td>
         </tr><tr>
           <td>16 KB</td>
-          <td class="">523</td><td class="">294</td><td class="winner">3,208</td><td class="">1,467</td>
+          <td class="">529</td><td class="">302</td><td class="winner">3,206</td><td class="">1,666</td>
         </tr><tr>
           <td>64 KB</td>
-          <td class="">549</td><td class="">443</td><td class="winner">4,054</td><td class="">2,530</td>
+          <td class="">553</td><td class="">441</td><td class="winner">4,092</td><td class="">2,469</td>
         </tr><tr>
           <td>256 KB</td>
-          <td class="">550</td><td class="">503</td><td class="winner">4,260</td><td class="winner">4,191</td>
+          <td class="">560</td><td class="">511</td><td class="">4,350</td><td class="winner">4,642</td>
         </tr><tr>
           <td>1 MB</td>
-          <td class="">560</td><td class="">484</td><td class="winner">4,389</td><td class="winner">4,348</td>
+          <td class="">539</td><td class="">490</td><td class="">4,480</td><td class="winner">5,289</td>
         </tr>
     </tbody>
   </table>
 
   <script>
     const sizeLabels = ["64 bytes","256 bytes","1 KB","4 KB","16 KB","64 KB","256 KB","1 MB"];
-    const datasets = [{"label":"Native SHA-256","data":[32,113,285,457,523,549,550,560],"backgroundColor":"#4a4458","borderColor":"#4a4458","borderWidth":2},{"label":"WebCrypto SHA-256","data":[3,11,42,137,294,443,503,484],"backgroundColor":"#6b6280","borderColor":"#6b6280","borderWidth":2},{"label":"Native BLAKE3","data":[44,145,478,1422,3208,4054,4260,4389],"backgroundColor":"#22c55e","borderColor":"#22c55e","borderWidth":2},{"label":"WASM BLAKE3","data":[221,515,863,1481,1467,2530,4191,4348],"backgroundColor":"#3b82f6","borderColor":"#3b82f6","borderWidth":2}];
+    const datasets = [{"label":"Native SHA-256","data":[30,114,295,439,529,553,560,539],"backgroundColor":"#4a4458","borderColor":"#4a4458","borderWidth":2},{"label":"WebCrypto SHA-256","data":[3,11,43,137,302,441,511,490],"backgroundColor":"#6b6280","borderColor":"#6b6280","borderWidth":2},{"label":"Native BLAKE3 (1T)","data":[48,174,494,1453,3206,4092,4350,4480],"backgroundColor":"#22c55e","borderColor":"#22c55e","borderWidth":2},{"label":"WASM BLAKE3 (8T)","data":[225,609,794,1532,1666,2469,4642,5289],"backgroundColor":"#3b82f6","borderColor":"#3b82f6","borderWidth":2}];
 
     const chartOptions = {
       responsive: true,
@@ -163,9 +163,16 @@
       },
       scales: {
         y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Throughput (MB/s)', color: '#94a3b8' },
-          ticks: { color: '#94a3b8' },
+          type: 'logarithmic',
+          min: 1,
+          title: { display: true, text: 'Throughput (MB/s) - Log Scale', color: '#94a3b8' },
+          ticks: {
+            color: '#94a3b8',
+            callback: function(value) {
+              if ([1, 10, 100, 1000, 10000].includes(value)) return value;
+              return '';
+            }
+          },
           grid: { color: '#334155' }
         },
         x: {
