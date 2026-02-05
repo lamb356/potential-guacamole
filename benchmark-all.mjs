@@ -68,7 +68,7 @@ try {
   });
   console.log('  ✓ Native SHA-256 (Node.js crypto/OpenSSL)');
 } catch (err) {
-  console.log('  ✗ Native SHA-256:', err.message);
+  console.log(`  ⚠ Skipping Native SHA-256: ${err.message}`);
 }
 
 // 2. WebCrypto SHA-256
@@ -84,7 +84,7 @@ try {
   });
   console.log('  ✓ WebCrypto SHA-256 (browser API)');
 } catch (err) {
-  console.log('  ✗ WebCrypto SHA-256:', err.message);
+  console.log(`  ⚠ Skipping WebCrypto SHA-256: ${err.message}`);
 }
 
 // 3. Native BLAKE3 (@napi-rs/blake-hash) - single-threaded, no rayon
@@ -101,7 +101,7 @@ try {
   });
   console.log('  ✓ Native BLAKE3 (single-threaded, @napi-rs/blake-hash)');
 } catch (err) {
-  console.log('  ✗ Native BLAKE3:', err.message);
+  console.log(`  ⚠ Skipping Native BLAKE3 (1T): ${err.message}`);
 }
 
 // 4. Native BLAKE3 with Rayon (custom addon, multi-threaded via update_rayon)
@@ -119,7 +119,7 @@ try {
   });
   console.log(`  ✓ Native BLAKE3 Rayon (multi-threaded, update_rayon)`);
 } catch (err) {
-  console.log('  ✗ Native BLAKE3 Rayon:', err.message);
+  console.log(`  ⚠ Skipping Native BLAKE3 (Rayon): ${err.message}`);
 }
 
 // 5. WASM BLAKE3 Adaptive (SIMD always + multithreading at ≥64KB)
@@ -169,13 +169,18 @@ try {
   });
   console.log(`  ✓ WASM BLAKE3 Adaptive (SIMD + ${physicalCores} threads at ≥64KB)`);
 } catch (err) {
-  console.log('  ✗ WASM BLAKE3 Adaptive:', err.message);
+  console.log(`  ⚠ Skipping WASM BLAKE3 Adaptive: ${err.message}`);
 }
 
 if (loaded.length === 0) {
-  console.error('No implementations loaded!');
+  console.error('\nNo implementations loaded! Please build the native modules first.');
+  console.error('See README.md for build instructions.');
   process.exit(1);
 }
+
+console.log('');
+console.log(`Loaded ${loaded.length} implementation(s): ${loaded.map(i => i.name).join(', ')}`);
+
 
 // Benchmark function
 async function benchmark(hashFn, isAsync, data, iterations) {
