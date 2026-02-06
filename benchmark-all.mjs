@@ -343,14 +343,14 @@ for (const size of sizes) {
 console.log('');
 console.log('* marks values within 5% of the fastest');
 
-// Key comparison
+// Key comparison (browser-compatible implementations)
 console.log('');
 console.log('═'.repeat(70));
-console.log('KEY COMPARISON: WASM BLAKE3 vs Native SHA-256');
+console.log('KEY COMPARISON: WASM BLAKE3 vs WebCrypto SHA-256 (both browser-compatible)');
 console.log('═'.repeat(70));
 console.log('');
 
-const sha = results['sha256-native'];
+const sha = results['sha256-wc'];
 const blake = results['blake3-wasm'];
 
 if (sha && blake) {
@@ -359,7 +359,7 @@ if (sha && blake) {
     const blakeVal = blake[size.name];
     const ratio = (blakeVal / shaVal).toFixed(1);
     const winner = blakeVal > shaVal ? '✓ BLAKE3' : '✗ SHA256';
-    console.log(`  ${size.name.padEnd(12)} SHA256: ${shaVal.toString().padStart(5)} MB/s  BLAKE3: ${blakeVal.toString().padStart(5)} MB/s  (${ratio}x) ${winner}`);
+    console.log(`  ${size.name.padEnd(12)} WebCrypto: ${shaVal.toString().padStart(5)} MB/s  WASM: ${blakeVal.toString().padStart(5)} MB/s  (${ratio}x) ${winner}`);
   }
 }
 
