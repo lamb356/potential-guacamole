@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BLAKE3 WASM Browser Test</title>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    h1 { text-align: center; color: #f8fafc; margin-bottom: 10px; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; }
+
+    .drop-zone {
+      border: 3px dashed #475569;
+      border-radius: 12px;
+      padding: 60px 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      background: #1e293b;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #3b82f6;
+      background: #1e3a5f;
+    }
+    .drop-zone p { margin: 0 0 10px 0; font-size: 18px; color: #94a3b8; }
+    .drop-zone .icon { font-size: 48px; margin-bottom: 10px; }
+    .drop-zone input[type="file"] { display: none; }
+
+    .status {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+      display: none;
+    }
+    .status.visible { display: block; }
+    .status h3 { margin: 0 0 15px 0; color: #f8fafc; }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #334155;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-label { color: #94a3b8; }
+    .result-value { color: #f8fafc; font-family: 'Monaco', 'Consolas', monospace; }
+    .result-value.hash {
+      font-size: 12px;
+      word-break: break-all;
+      max-width: 500px;
+      text-align: right;
+    }
+    .result-value.highlight { color: #4ade80; font-weight: bold; }
+
+    .progress {
+      background: #334155;
+      border-radius: 8px;
+      height: 8px;
+      margin-top: 15px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      background: linear-gradient(90deg, #3b82f6, #22c55e);
+      height: 100%;
+      width: 0%;
+      transition: width 0.1s ease;
+    }
+
+    .error {
+      background: #7f1d1d;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+      display: none;
+    }
+    .error.visible { display: block; }
+    .error h3 { margin: 0 0 10px 0; color: #fecaca; }
+    .error p { margin: 0; color: #fca5a5; }
+
+    .note {
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+      margin-top: 30px;
+    }
+    .note a { color: #60a5fa; }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #94a3b8;
+    }
+    .loading .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #475569;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <h1>BLAKE3 WASM Browser Test</h1>
+  <p class="subtitle">Parallel WASM with Web Workers + SharedArrayBuffer</p>
+
+  <div id="init-status" class="loading">
+    <span class="spinner"></span>
+    Initializing WASM module and thread pool...
+  </div>
+
+  <div id="drop-zone" class="drop-zone" style="display: none;">
+    <div class="icon">📁</div>
+    <p>Drop a file here or click to select</p>
+    <p style="font-size: 14px; color: #64748b;">Supports any file size</p>
+    <input type="file" id="file-input">
+  </div>
+
+  <div id="status" class="status">
+    <h3>Results</h3>
+    <div class="result-row">
+      <span class="result-label">File Name</span>
+      <span class="result-value" id="file-name">-</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">File Size</span>
+      <span class="result-value" id="file-size">-</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">BLAKE3 Hash</span>
+      <span class="result-value hash" id="hash-value">-</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Time</span>
+      <span class="result-value" id="time-value">-</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Throughput</span>
+      <span class="result-value highlight" id="throughput-value">-</span>
+    </div>
+    <div class="progress">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+  </div>
+
+  <div id="error" class="error">
+    <h3>⚠️ Error</h3>
+    <p id="error-message"></p>
+  </div>
+
+  <p class="note">
+    This page requires <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer">SharedArrayBuffer</a> support.<br>
+    Serve with proper COOP/COEP headers or use a local server.
+  </p>
+
+  <script type="module">
+    // Check for SharedArrayBuffer support
+    if (typeof SharedArrayBuffer === 'undefined') {
+      document.getElementById('init-status').innerHTML = `
+        <h3 style="color: #fecaca;">SharedArrayBuffer not available</h3>
+        <p style="color: #fca5a5;">This page requires SharedArrayBuffer for parallel WASM.<br>
+        Please serve with proper COOP/COEP headers or use HTTPS.</p>
+      `;
+      throw new Error('SharedArrayBuffer not available');
+    }
+
+    let blake3;
+    let initialized = false;
+
+    // Initialize WASM module
+    async function init() {
+      try {
+        // Import the WASM module
+        const module = await import('./blake3-wasm-rayon/pkg/blake3_wasm_rayon.js');
+
+        // Fetch and compile WASM
+        const wasmResponse = await fetch('./blake3-wasm-rayon/pkg/blake3_wasm_rayon_bg.wasm');
+        const wasmBytes = await wasmResponse.arrayBuffer();
+        const wasmModule = await WebAssembly.compile(wasmBytes);
+
+        // Initialize with the compiled module
+        await module.default({ module_or_path: wasmModule });
+
+        // Initialize thread pool (4 threads)
+        await module.initThreadPool(4);
+
+        blake3 = module;
+        initialized = true;
+
+        document.getElementById('init-status').style.display = 'none';
+        document.getElementById('drop-zone').style.display = 'block';
+
+        console.log('BLAKE3 WASM initialized with 4 threads');
+      } catch (err) {
+        document.getElementById('init-status').innerHTML = `
+          <h3 style="color: #fecaca;">Initialization Failed</h3>
+          <p style="color: #fca5a5;">${err.message}</p>
+          <p style="color: #64748b; font-size: 12px; margin-top: 10px;">
+            Make sure to serve this page from a web server with proper headers.
+          </p>
+        `;
+        console.error('Failed to initialize BLAKE3:', err);
+      }
+    }
+
+    // Format bytes to human readable
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+      if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+      return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+    }
+
+    // Convert Uint8Array to hex string
+    function toHex(bytes) {
+      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Hash a file
+    async function hashFile(file) {
+      const status = document.getElementById('status');
+      const errorDiv = document.getElementById('error');
+      const progressBar = document.getElementById('progress-bar');
+
+      status.classList.add('visible');
+      errorDiv.classList.remove('visible');
+      progressBar.style.width = '0%';
+
+      document.getElementById('file-name').textContent = file.name;
+      document.getElementById('file-size').textContent = formatBytes(file.size);
+      document.getElementById('hash-value').textContent = 'Computing...';
+      document.getElementById('time-value').textContent = '-';
+      document.getElementById('throughput-value').textContent = '-';
+
+      try {
+        // Read file as ArrayBuffer
+        progressBar.style.width = '20%';
+        const arrayBuffer = await file.arrayBuffer();
+        const data = new Uint8Array(arrayBuffer);
+
+        progressBar.style.width = '40%';
+
+        // Hash the data
+        const start = performance.now();
+        const hashBytes = blake3.hash(data);
+        const elapsed = performance.now() - start;
+
+        progressBar.style.width = '100%';
+
+        // Calculate throughput
+        const throughputMBps = (file.size / 1024 / 1024) / (elapsed / 1000);
+
+        // Display results
+        document.getElementById('hash-value').textContent = toHex(hashBytes);
+        document.getElementById('time-value').textContent = elapsed.toFixed(2) + ' ms';
+        document.getElementById('throughput-value').textContent = throughputMBps.toFixed(0) + ' MB/s';
+
+        console.log(`Hashed ${file.name}: ${formatBytes(file.size)} in ${elapsed.toFixed(2)}ms (${throughputMBps.toFixed(0)} MB/s)`);
+      } catch (err) {
+        errorDiv.classList.add('visible');
+        document.getElementById('error-message').textContent = err.message;
+        console.error('Hash error:', err);
+      }
+    }
+
+    // Set up drop zone
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) hashFile(file);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) hashFile(file);
+    });
+
+    // Initialize on load
+    init();
+  </script>
+</body>
+</html>
