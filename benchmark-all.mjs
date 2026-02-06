@@ -44,7 +44,7 @@ const sizes = [
 ];
 
 // Adaptive threshold for switching from single to parallel
-const PARALLEL_THRESHOLD = 65536; // 64KB
+const PARALLEL_THRESHOLD = 262144; // 256KB - NUMA-friendly
 
 // === System Info Capture (following smalloc pattern) ===
 function execSafe(cmd) {
@@ -174,9 +174,9 @@ try {
     const wasmModule = await WebAssembly.compile(wasmBytes);
     await parallelMod.default({ module_or_path: wasmModule });
 
-    // Cap threads at 8
+    // Cap threads at 4 for NUMA-friendly behavior
     const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
-    const threadCount = Math.min(physicalCores, 8);
+    const threadCount = Math.min(physicalCores, 4);
     await parallelMod.initThreadPool(threadCount);
 
     // Calibrate: compare single vs parallel at 256KB
@@ -184,7 +184,8 @@ try {
     const singleSpeed = calibrate((d) => singleMod.hash(d));
     const parallelSpeed = calibrate((d) => parallelMod.hash(d));
 
-    if (parallelSpeed > singleSpeed * 1.1) {
+    // Require 25% speedup to use parallel (conservative for NUMA)
+    if (parallelSpeed > singleSpeed * 1.25) {
       useParallel = true;
       console.log(`  ... parallel is faster (${parallelSpeed} vs ${singleSpeed} MB/s)`);
     } else {

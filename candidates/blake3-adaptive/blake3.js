@@ -1,11 +1,9 @@
 /**
- * Adaptive BLAKE3 - Uses single-threaded SIMD for all practical sizes
+ * Adaptive BLAKE3 - NUMA-friendly configuration
  *
- * Based on benchmark data from high-core-count machines (EPYC 9754):
- * Single-threaded SIMD is faster than parallel at all practical sizes.
- * Thread coordination overhead outweighs parallelism benefits.
- *
- * Threshold set to 16MB to effectively always use single-threaded SIMD.
+ * - Uses single-threaded SIMD for inputs < 256KB
+ * - Uses parallel WASM (4 threads max) for inputs >= 256KB
+ * - Conservative settings to avoid NUMA overhead on multi-socket systems
  */
 
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -17,8 +15,8 @@ import os from 'os';
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Threshold: set very high so single-threaded SIMD is always used at practical sizes
-const PARALLEL_THRESHOLD = 16777216; // 16MB - effectively always single-threaded
+// Threshold for switching from single to parallel
+const PARALLEL_THRESHOLD = 262144; // 256KB - NUMA-friendly
 
 // === Load single-threaded SIMD implementation ===
 const singlePkgPath = resolve(__dirname, '../../blake3-wasm-single/pkg');
@@ -39,9 +37,9 @@ const wasmBytes = readFileSync(parallelWasmPath);
 const wasmModule = await WebAssembly.compile(wasmBytes);
 await parallelMod.default({ module_or_path: wasmModule });
 
-// Initialize thread pool with physical cores, capped at 8 to avoid overhead on high-core machines
+// Initialize thread pool with physical cores, capped at 4 for NUMA-friendly behavior
 const physicalCores = Math.max(1, Math.floor(os.cpus().length / 2));
-const threadCount = Math.min(physicalCores, 8);
+const threadCount = Math.min(physicalCores, 4);
 await parallelMod.initThreadPool(threadCount);
 
 // Warmup both implementations
