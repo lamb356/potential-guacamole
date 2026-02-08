@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BLAKE3 vs SHA-256 Browser Benchmark</title>
-  <!-- Enable SharedArrayBuffer on GitHub Pages -->
+  <!-- Try to enable SharedArrayBuffer on GitHub Pages (may not work on all browsers) -->
   <script src="https://cdn.jsdelivr.net/npm/coi-serviceworker@0.1.7/coi-serviceworker.min.js"></script>
   <style>
     /* Minimal CSS for readability */
@@ -72,7 +72,6 @@
     .stat-value.big { font-size: 24px; font-weight: bold; }
 
     .winner { background: #1a3a1a !important; }
-    .error { color: #f87171; }
     .loading { color: #888; }
   </style>
 </head>
@@ -92,7 +91,7 @@
   <div class="results" id="results" style="display: none;">
     <!-- BLAKE3 Result -->
     <div class="result-card blake3" id="blake3-card">
-      <h3>WASM BLAKE3 (4 threads)</h3>
+      <h3 id="blake3-title">WASM BLAKE3</h3>
       <div class="stat">
         <div class="stat-label">Throughput</div>
         <div class="stat-value big" id="blake3-speed">-</div>
@@ -134,68 +133,78 @@
     BLAKE3 WASM BROWSER IMPLEMENTATION
     ============================================================
 
-    This code demonstrates using WASM BLAKE3 with parallel hashing
-    in the browser. Key points:
+    This code uses WASM BLAKE3 in the browser with automatic fallback:
+    - If SharedArrayBuffer is available: uses 4-thread parallel mode
+    - Otherwise: uses single-threaded SIMD mode
 
-    1. Requires SharedArrayBuffer (needs COOP/COEP headers)
-    2. Uses 4 Web Workers for parallel hashing
-    3. Hard-coded settings for easy auditing
+    Both modes produce identical hashes. Parallel is faster on
+    multi-core systems, but single-threaded works everywhere.
 
-    Dependencies:
+    Dependencies (parallel mode):
     - blake3-wasm-rayon/pkg/blake3_wasm_rayon.js
     - blake3-wasm-rayon/pkg/blake3_wasm_rayon_bg.wasm
+
+    Dependencies (single-threaded fallback):
+    - blake3-wasm-single/pkg/blake3_wasm_single.js
+    - blake3-wasm-single/pkg/blake3_wasm_single_bg.wasm
     ============================================================
   -->
   <script type="module">
     // ============================================================
-    // CONFIGURATION (hard-coded for simplicity and auditability)
-    // ============================================================
-    const THREAD_COUNT = 4;  // Fixed number of Web Workers
-
-    // ============================================================
     // GLOBAL STATE
     // ============================================================
-    let blake3Module = null;  // WASM module reference
+    let blake3Hash = null;    // Hash function reference
     let isReady = false;      // Initialization complete flag
+    let isParallel = false;   // Using parallel mode?
 
     // ============================================================
-    // INITIALIZATION
+    // INITIALIZATION - Try parallel, fall back to single-threaded
     // ============================================================
     async function init() {
       const status = document.getElementById('status');
+      const blake3Title = document.getElementById('blake3-title');
 
-      // Check for SharedArrayBuffer (required for parallel WASM)
-      if (typeof SharedArrayBuffer === 'undefined') {
-        status.innerHTML = `
-          <span class="error">
-            SharedArrayBuffer not available.<br>
-            Serve with COOP/COEP headers or use HTTPS.
-          </span>
-        `;
-        return;
+      // Try parallel mode first (requires SharedArrayBuffer)
+      if (typeof SharedArrayBuffer !== 'undefined') {
+        try {
+          const module = await import('./blake3-wasm-rayon/pkg/blake3_wasm_rayon.js');
+          const wasmResponse = await fetch('./blake3-wasm-rayon/pkg/blake3_wasm_rayon_bg.wasm');
+          const wasmBytes = await wasmResponse.arrayBuffer();
+          const wasmModule = await WebAssembly.compile(wasmBytes);
+          await module.default({ module_or_path: wasmModule });
+          await module.initThreadPool(4);
+
+          blake3Hash = (data) => module.hash(data);
+          isParallel = true;
+          isReady = true;
+
+          blake3Title.textContent = 'WASM BLAKE3 (4 threads)';
+          status.textContent = 'Ready! Using parallel mode (4 threads).';
+          status.style.color = '#4ade80';
+          return;
+        } catch (err) {
+          console.log('Parallel mode failed, trying single-threaded:', err.message);
+        }
       }
 
+      // Fall back to single-threaded mode
       try {
-        // Load the WASM module
-        blake3Module = await import('./blake3-wasm-rayon/pkg/blake3_wasm_rayon.js');
-
-        // Fetch and compile WASM binary
-        const wasmResponse = await fetch('./blake3-wasm-rayon/pkg/blake3_wasm_rayon_bg.wasm');
+        const module = await import('./blake3-wasm-single/pkg/blake3_wasm_single.js');
+        const wasmResponse = await fetch('./blake3-wasm-single/pkg/blake3_wasm_single_bg.wasm');
         const wasmBytes = await wasmResponse.arrayBuffer();
         const wasmModule = await WebAssembly.compile(wasmBytes);
+        await module.default(wasmModule);
 
-        // Initialize WASM with compiled module
-        await blake3Module.default({ module_or_path: wasmModule });
-
-        // Initialize thread pool with fixed thread count
-        await blake3Module.initThreadPool(THREAD_COUNT);
-
+        blake3Hash = (data) => module.hash(data);
+        isParallel = false;
         isReady = true;
-        status.textContent = `Ready! BLAKE3 initialized with ${THREAD_COUNT} threads.`;
-        status.style.color = '#4ade80';
 
+        blake3Title.textContent = 'WASM BLAKE3 (single-threaded)';
+        status.textContent = 'Ready! Using single-threaded mode.';
+        status.style.color = '#fbbf24';
       } catch (err) {
-        status.innerHTML = `<span class="error">Init failed: ${err.message}</span>`;
+        status.textContent = 'Failed to load BLAKE3: ' + err.message;
+        status.style.color = '#f87171';
         console.error('BLAKE3 init error:', err);
       }
     }
@@ -204,41 +213,20 @@
     // HASH FUNCTIONS
     // ============================================================
 
-    /**
-     * Hash data with WASM BLAKE3 (parallel)
-     * @param {Uint8Array} data - Input bytes
-     * @returns {Uint8Array} - 32-byte hash
-     */
-    function hashBlake3(data) {
-      return blake3Module.hash(data);
-    }
-
-    /**
-     * Hash data with WebCrypto SHA-256
-     * @param {Uint8Array} data - Input bytes
-     * @returns {Promise<Uint8Array>} - 32-byte hash
-     */
+    // Hash data with WebCrypto SHA-256
     async function hashSha256(data) {
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       return new Uint8Array(hashBuffer);
     }
 
-    /**
-     * Convert bytes to hex string
-     * @param {Uint8Array} bytes
-     * @returns {string}
-     */
+    // Convert bytes to hex string
     function toHex(bytes) {
       return Array.from(bytes)
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
     }
 
-    /**
-     * Format bytes as human-readable size
-     * @param {number} bytes
-     * @returns {string}
-     */
+    // Format bytes as human-readable size
     function formatSize(bytes) {
       if (bytes < 1024) return bytes + ' B';
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -249,10 +237,6 @@
     // BENCHMARK
     // ============================================================
 
-    /**
-     * Benchmark both hash functions on a file
-     * @param {File} file
-     */
     async function benchmarkFile(file) {
       if (!isReady) {
         alert('BLAKE3 not ready yet. Please wait.');
@@ -270,21 +254,21 @@
 
       // --- BLAKE3 Benchmark ---
       const blake3Start = performance.now();
-      const blake3Hash = hashBlake3(data);
+      const blake3HashResult = blake3Hash(data);
       const blake3Time = performance.now() - blake3Start;
       const blake3Speed = (file.size / 1024 / 1024) / (blake3Time / 1000);
 
-      document.getElementById('blake3-hash').textContent = toHex(blake3Hash);
+      document.getElementById('blake3-hash').textContent = toHex(blake3HashResult);
       document.getElementById('blake3-time').textContent = blake3Time.toFixed(2) + ' ms';
       document.getElementById('blake3-speed').textContent = blake3Speed.toFixed(0) + ' MB/s';
 
       // --- SHA-256 Benchmark ---
       const sha256Start = performance.now();
-      const sha256Hash = await hashSha256(data);
+      const sha256HashResult = await hashSha256(data);
       const sha256Time = performance.now() - sha256Start;
       const sha256Speed = (file.size / 1024 / 1024) / (sha256Time / 1000);
 
-      document.getElementById('sha256-hash').textContent = toHex(sha256Hash);
+      document.getElementById('sha256-hash').textContent = toHex(sha256HashResult);
       document.getElementById('sha256-time').textContent = sha256Time.toFixed(2) + ' ms';
       document.getElementById('sha256-speed').textContent = sha256Speed.toFixed(0) + ' MB/s';
 
