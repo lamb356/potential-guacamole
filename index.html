@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BLAKE3 WASM Browser Demo</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+      text-align: center;
+    }
+    h1 { color: #4ade80; }
+    a {
+      display: block;
+      background: #252540;
+      color: #4a9eff;
+      text-decoration: none;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    a:hover { background: #303060; }
+    p { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>BLAKE3 WASM Demo</h1>
+  <p>Browser-based BLAKE3 hashing with parallel WASM</p>
+
+  <a href="browser-test.html">
+    <strong>Browser Benchmark</strong><br>
+    <small>Compare BLAKE3 vs SHA-256 side-by-side</small>
+  </a>
+
+  <a href="blake3-browser-minimal.html">
+    <strong>Minimal Example</strong><br>
+    <small>Copy-paste ready code for your project</small>
+  </a>
+
+  <p style="margin-top: 40px; font-size: 12px;">
+    Requires SharedArrayBuffer (COOP/COEP headers)
+  </p>
+</body>
+</html>
