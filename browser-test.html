@@ -1,308 +1,340 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>BLAKE3 WASM Browser Test</title>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BLAKE3 vs SHA-256 Browser Benchmark</title>
   <style>
-    * { box-sizing: border-box; }
+    /* Minimal CSS for readability */
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: system-ui, sans-serif;
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
-      background: #0f172a;
-      color: #e2e8f0;
+      background: #1a1a2e;
+      color: #eee;
     }
-    h1 { text-align: center; color: #f8fafc; margin-bottom: 10px; }
-    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; }
+    h1 { text-align: center; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 30px; }
 
-    .drop-zone {
-      border: 3px dashed #475569;
-      border-radius: 12px;
-      padding: 60px 20px;
-      text-align: center;
-      transition: all 0.3s ease;
-      cursor: pointer;
-      background: #1e293b;
-    }
-    .drop-zone:hover, .drop-zone.dragover {
-      border-color: #3b82f6;
-      background: #1e3a5f;
-    }
-    .drop-zone p { margin: 0 0 10px 0; font-size: 18px; color: #94a3b8; }
-    .drop-zone .icon { font-size: 48px; margin-bottom: 10px; }
-    .drop-zone input[type="file"] { display: none; }
-
-    .status {
-      background: #1e293b;
-      border-radius: 12px;
-      padding: 20px;
-      margin-top: 20px;
-      display: none;
-    }
-    .status.visible { display: block; }
-    .status h3 { margin: 0 0 15px 0; color: #f8fafc; }
-
-    .result-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #334155;
-    }
-    .result-row:last-child { border-bottom: none; }
-    .result-label { color: #94a3b8; }
-    .result-value { color: #f8fafc; font-family: 'Monaco', 'Consolas', monospace; }
-    .result-value.hash {
-      font-size: 12px;
-      word-break: break-all;
-      max-width: 500px;
-      text-align: right;
-    }
-    .result-value.highlight { color: #4ade80; font-weight: bold; }
-
-    .progress {
-      background: #334155;
+    /* File input area */
+    .file-area {
+      border: 2px dashed #444;
       border-radius: 8px;
-      height: 8px;
-      margin-top: 15px;
-      overflow: hidden;
+      padding: 40px;
+      text-align: center;
+      margin-bottom: 20px;
+      cursor: pointer;
     }
-    .progress-bar {
-      background: linear-gradient(90deg, #3b82f6, #22c55e);
-      height: 100%;
-      width: 0%;
-      transition: width 0.1s ease;
+    .file-area:hover { border-color: #666; }
+    .file-area.dragover { border-color: #4a9eff; background: #1a2a3e; }
+    .file-area input { display: none; }
+    .file-area button {
+      background: #4a9eff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
     }
 
-    .error {
-      background: #7f1d1d;
-      border-radius: 12px;
-      padding: 20px;
+    /* Results grid - side by side comparison */
+    .results {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
       margin-top: 20px;
-      display: none;
     }
-    .error.visible { display: block; }
-    .error h3 { margin: 0 0 10px 0; color: #fecaca; }
-    .error p { margin: 0; color: #fca5a5; }
-
-    .note {
-      text-align: center;
-      color: #64748b;
-      font-size: 14px;
-      margin-top: 30px;
+    @media (max-width: 600px) {
+      .results { grid-template-columns: 1fr; }
     }
-    .note a { color: #60a5fa; }
 
-    .loading {
-      text-align: center;
+    .result-card {
+      background: #252540;
+      border-radius: 8px;
       padding: 20px;
-      color: #94a3b8;
     }
-    .loading .spinner {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 2px solid #475569;
-      border-top-color: #3b82f6;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-right: 10px;
-      vertical-align: middle;
+    .result-card h3 {
+      margin: 0 0 15px 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #333;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .result-card.blake3 h3 { color: #4ade80; }
+    .result-card.sha256 h3 { color: #a78bfa; }
+
+    .stat { margin: 10px 0; }
+    .stat-label { color: #888; font-size: 14px; }
+    .stat-value { font-family: monospace; font-size: 14px; word-break: break-all; }
+    .stat-value.big { font-size: 24px; font-weight: bold; }
+
+    .winner { background: #1a3a1a !important; }
+    .error { color: #f87171; }
+    .loading { color: #888; }
   </style>
 </head>
 <body>
-  <h1>BLAKE3 WASM Browser Test</h1>
-  <p class="subtitle">Parallel WASM with Web Workers + SharedArrayBuffer</p>
+  <h1>BLAKE3 vs SHA-256</h1>
+  <p class="subtitle">Browser Benchmark - Drop a file to compare</p>
 
-  <div id="init-status" class="loading">
-    <span class="spinner"></span>
-    Initializing WASM module and thread pool...
-  </div>
-
-  <div id="drop-zone" class="drop-zone" style="display: none;">
-    <div class="icon">📁</div>
-    <p>Drop a file here or click to select</p>
-    <p style="font-size: 14px; color: #64748b;">Supports any file size</p>
+  <!-- File input (supports both drag-drop and click) -->
+  <div class="file-area" id="file-area">
+    <p>Drop a file here</p>
+    <p style="color: #666">or</p>
+    <button type="button">Choose File</button>
     <input type="file" id="file-input">
   </div>
 
-  <div id="status" class="status">
-    <h3>Results</h3>
-    <div class="result-row">
-      <span class="result-label">File Name</span>
-      <span class="result-value" id="file-name">-</span>
+  <!-- Side-by-side results -->
+  <div class="results" id="results" style="display: none;">
+    <!-- BLAKE3 Result -->
+    <div class="result-card blake3" id="blake3-card">
+      <h3>WASM BLAKE3 (4 threads)</h3>
+      <div class="stat">
+        <div class="stat-label">Throughput</div>
+        <div class="stat-value big" id="blake3-speed">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Time</div>
+        <div class="stat-value" id="blake3-time">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Hash (hex)</div>
+        <div class="stat-value" id="blake3-hash">-</div>
+      </div>
     </div>
-    <div class="result-row">
-      <span class="result-label">File Size</span>
-      <span class="result-value" id="file-size">-</span>
-    </div>
-    <div class="result-row">
-      <span class="result-label">BLAKE3 Hash</span>
-      <span class="result-value hash" id="hash-value">-</span>
-    </div>
-    <div class="result-row">
-      <span class="result-label">Time</span>
-      <span class="result-value" id="time-value">-</span>
-    </div>
-    <div class="result-row">
-      <span class="result-label">Throughput</span>
-      <span class="result-value highlight" id="throughput-value">-</span>
-    </div>
-    <div class="progress">
-      <div class="progress-bar" id="progress-bar"></div>
+
+    <!-- SHA-256 Result -->
+    <div class="result-card sha256" id="sha256-card">
+      <h3>WebCrypto SHA-256</h3>
+      <div class="stat">
+        <div class="stat-label">Throughput</div>
+        <div class="stat-value big" id="sha256-speed">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Time</div>
+        <div class="stat-value" id="sha256-time">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Hash (hex)</div>
+        <div class="stat-value" id="sha256-hash">-</div>
+      </div>
     </div>
   </div>
 
-  <div id="error" class="error">
-    <h3>⚠️ Error</h3>
-    <p id="error-message"></p>
-  </div>
-
-  <p class="note">
-    This page requires <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer">SharedArrayBuffer</a> support.<br>
-    Serve with proper COOP/COEP headers or use a local server.
+  <p id="status" class="loading" style="text-align: center; margin-top: 20px;">
+    Loading WASM module...
   </p>
 
+  <!--
+    ============================================================
+    BLAKE3 WASM BROWSER IMPLEMENTATION
+    ============================================================
+
+    This code demonstrates using WASM BLAKE3 with parallel hashing
+    in the browser. Key points:
+
+    1. Requires SharedArrayBuffer (needs COOP/COEP headers)
+    2. Uses 4 Web Workers for parallel hashing
+    3. Hard-coded settings for easy auditing
+
+    Dependencies:
+    - blake3-wasm-rayon/pkg/blake3_wasm_rayon.js
+    - blake3-wasm-rayon/pkg/blake3_wasm_rayon_bg.wasm
+    ============================================================
+  -->
   <script type="module">
-    // Check for SharedArrayBuffer support
-    if (typeof SharedArrayBuffer === 'undefined') {
-      document.getElementById('init-status').innerHTML = `
-        <h3 style="color: #fecaca;">SharedArrayBuffer not available</h3>
-        <p style="color: #fca5a5;">This page requires SharedArrayBuffer for parallel WASM.<br>
-        Please serve with proper COOP/COEP headers or use HTTPS.</p>
-      `;
-      throw new Error('SharedArrayBuffer not available');
-    }
+    // ============================================================
+    // CONFIGURATION (hard-coded for simplicity and auditability)
+    // ============================================================
+    const THREAD_COUNT = 4;  // Fixed number of Web Workers
 
-    let blake3;
-    let initialized = false;
+    // ============================================================
+    // GLOBAL STATE
+    // ============================================================
+    let blake3Module = null;  // WASM module reference
+    let isReady = false;      // Initialization complete flag
 
-    // Initialize WASM module
+    // ============================================================
+    // INITIALIZATION
+    // ============================================================
     async function init() {
-      try {
-        // Import the WASM module
-        const module = await import('./blake3-wasm-rayon/pkg/blake3_wasm_rayon.js');
+      const status = document.getElementById('status');
 
-        // Fetch and compile WASM
+      // Check for SharedArrayBuffer (required for parallel WASM)
+      if (typeof SharedArrayBuffer === 'undefined') {
+        status.innerHTML = `
+          <span class="error">
+            SharedArrayBuffer not available.<br>
+            Serve with COOP/COEP headers or use HTTPS.
+          </span>
+        `;
+        return;
+      }
+
+      try {
+        // Load the WASM module
+        blake3Module = await import('./blake3-wasm-rayon/pkg/blake3_wasm_rayon.js');
+
+        // Fetch and compile WASM binary
         const wasmResponse = await fetch('./blake3-wasm-rayon/pkg/blake3_wasm_rayon_bg.wasm');
         const wasmBytes = await wasmResponse.arrayBuffer();
         const wasmModule = await WebAssembly.compile(wasmBytes);
 
-        // Initialize with the compiled module
-        await module.default({ module_or_path: wasmModule });
+        // Initialize WASM with compiled module
+        await blake3Module.default({ module_or_path: wasmModule });
 
-        // Initialize thread pool (4 threads)
-        await module.initThreadPool(4);
+        // Initialize thread pool with fixed thread count
+        await blake3Module.initThreadPool(THREAD_COUNT);
 
-        blake3 = module;
-        initialized = true;
+        isReady = true;
+        status.textContent = `Ready! BLAKE3 initialized with ${THREAD_COUNT} threads.`;
+        status.style.color = '#4ade80';
 
-        document.getElementById('init-status').style.display = 'none';
-        document.getElementById('drop-zone').style.display = 'block';
-
-        console.log('BLAKE3 WASM initialized with 4 threads');
       } catch (err) {
-        document.getElementById('init-status').innerHTML = `
-          <h3 style="color: #fecaca;">Initialization Failed</h3>
-          <p style="color: #fca5a5;">${err.message}</p>
-          <p style="color: #64748b; font-size: 12px; margin-top: 10px;">
-            Make sure to serve this page from a web server with proper headers.
-          </p>
-        `;
-        console.error('Failed to initialize BLAKE3:', err);
+        status.innerHTML = `<span class="error">Init failed: ${err.message}</span>`;
+        console.error('BLAKE3 init error:', err);
       }
     }
 
-    // Format bytes to human readable
-    function formatBytes(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-      if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(2) + ' MB';
-      return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+    // ============================================================
+    // HASH FUNCTIONS
+    // ============================================================
+
+    /**
+     * Hash data with WASM BLAKE3 (parallel)
+     * @param {Uint8Array} data - Input bytes
+     * @returns {Uint8Array} - 32-byte hash
+     */
+    function hashBlake3(data) {
+      return blake3Module.hash(data);
     }
 
-    // Convert Uint8Array to hex string
+    /**
+     * Hash data with WebCrypto SHA-256
+     * @param {Uint8Array} data - Input bytes
+     * @returns {Promise<Uint8Array>} - 32-byte hash
+     */
+    async function hashSha256(data) {
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      return new Uint8Array(hashBuffer);
+    }
+
+    /**
+     * Convert bytes to hex string
+     * @param {Uint8Array} bytes
+     * @returns {string}
+     */
     function toHex(bytes) {
-      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      return Array.from(bytes)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
     }
 
-    // Hash a file
-    async function hashFile(file) {
+    /**
+     * Format bytes as human-readable size
+     * @param {number} bytes
+     * @returns {string}
+     */
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    }
+
+    // ============================================================
+    // BENCHMARK
+    // ============================================================
+
+    /**
+     * Benchmark both hash functions on a file
+     * @param {File} file
+     */
+    async function benchmarkFile(file) {
+      if (!isReady) {
+        alert('BLAKE3 not ready yet. Please wait.');
+        return;
+      }
+
+      const results = document.getElementById('results');
       const status = document.getElementById('status');
-      const errorDiv = document.getElementById('error');
-      const progressBar = document.getElementById('progress-bar');
+      results.style.display = 'grid';
+      status.textContent = `Hashing ${file.name} (${formatSize(file.size)})...`;
 
-      status.classList.add('visible');
-      errorDiv.classList.remove('visible');
-      progressBar.style.width = '0%';
+      // Read file into memory
+      const arrayBuffer = await file.arrayBuffer();
+      const data = new Uint8Array(arrayBuffer);
 
-      document.getElementById('file-name').textContent = file.name;
-      document.getElementById('file-size').textContent = formatBytes(file.size);
-      document.getElementById('hash-value').textContent = 'Computing...';
-      document.getElementById('time-value').textContent = '-';
-      document.getElementById('throughput-value').textContent = '-';
+      // --- BLAKE3 Benchmark ---
+      const blake3Start = performance.now();
+      const blake3Hash = hashBlake3(data);
+      const blake3Time = performance.now() - blake3Start;
+      const blake3Speed = (file.size / 1024 / 1024) / (blake3Time / 1000);
 
-      try {
-        // Read file as ArrayBuffer
-        progressBar.style.width = '20%';
-        const arrayBuffer = await file.arrayBuffer();
-        const data = new Uint8Array(arrayBuffer);
+      document.getElementById('blake3-hash').textContent = toHex(blake3Hash);
+      document.getElementById('blake3-time').textContent = blake3Time.toFixed(2) + ' ms';
+      document.getElementById('blake3-speed').textContent = blake3Speed.toFixed(0) + ' MB/s';
 
-        progressBar.style.width = '40%';
+      // --- SHA-256 Benchmark ---
+      const sha256Start = performance.now();
+      const sha256Hash = await hashSha256(data);
+      const sha256Time = performance.now() - sha256Start;
+      const sha256Speed = (file.size / 1024 / 1024) / (sha256Time / 1000);
 
-        // Hash the data
-        const start = performance.now();
-        const hashBytes = blake3.hash(data);
-        const elapsed = performance.now() - start;
+      document.getElementById('sha256-hash').textContent = toHex(sha256Hash);
+      document.getElementById('sha256-time').textContent = sha256Time.toFixed(2) + ' ms';
+      document.getElementById('sha256-speed').textContent = sha256Speed.toFixed(0) + ' MB/s';
 
-        progressBar.style.width = '100%';
+      // Highlight winner
+      const blake3Card = document.getElementById('blake3-card');
+      const sha256Card = document.getElementById('sha256-card');
+      blake3Card.classList.remove('winner');
+      sha256Card.classList.remove('winner');
 
-        // Calculate throughput
-        const throughputMBps = (file.size / 1024 / 1024) / (elapsed / 1000);
-
-        // Display results
-        document.getElementById('hash-value').textContent = toHex(hashBytes);
-        document.getElementById('time-value').textContent = elapsed.toFixed(2) + ' ms';
-        document.getElementById('throughput-value').textContent = throughputMBps.toFixed(0) + ' MB/s';
-
-        console.log(`Hashed ${file.name}: ${formatBytes(file.size)} in ${elapsed.toFixed(2)}ms (${throughputMBps.toFixed(0)} MB/s)`);
-      } catch (err) {
-        errorDiv.classList.add('visible');
-        document.getElementById('error-message').textContent = err.message;
-        console.error('Hash error:', err);
+      if (blake3Speed > sha256Speed) {
+        blake3Card.classList.add('winner');
+        const ratio = (blake3Speed / sha256Speed).toFixed(1);
+        status.textContent = `BLAKE3 wins! ${ratio}x faster than SHA-256`;
+        status.style.color = '#4ade80';
+      } else {
+        sha256Card.classList.add('winner');
+        const ratio = (sha256Speed / blake3Speed).toFixed(1);
+        status.textContent = `SHA-256 wins! ${ratio}x faster than BLAKE3`;
+        status.style.color = '#a78bfa';
       }
     }
 
-    // Set up drop zone
-    const dropZone = document.getElementById('drop-zone');
+    // ============================================================
+    // EVENT HANDLERS
+    // ============================================================
+
+    const fileArea = document.getElementById('file-area');
     const fileInput = document.getElementById('file-input');
 
-    dropZone.addEventListener('click', () => fileInput.click());
+    // Click to open file picker (works on mobile)
+    fileArea.addEventListener('click', () => fileInput.click());
 
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('dragover');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('dragover');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
-      const file = e.dataTransfer.files[0];
-      if (file) hashFile(file);
-    });
-
+    // File selected via picker
     fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) hashFile(file);
+      if (e.target.files[0]) benchmarkFile(e.target.files[0]);
     });
 
-    // Initialize on load
+    // Drag and drop
+    fileArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileArea.classList.add('dragover');
+    });
+    fileArea.addEventListener('dragleave', () => {
+      fileArea.classList.remove('dragover');
+    });
+    fileArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileArea.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) benchmarkFile(e.dataTransfer.files[0]);
+    });
+
+    // Initialize on page load
     init();
   </script>
 </body>
