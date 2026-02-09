@@ -1,6 +1,15 @@
 /* @ts-self-types="./blake3_wasm_single.d.ts" */
 
 /**
+ * Returns the BLAKE3 chunk length (1024 bytes).
+ * @returns {number}
+ */
+export function chunk_len() {
+    const ret = wasm.chunk_len();
+    return ret >>> 0;
+}
+
+/**
  * @param {Uint8Array} input
  * @returns {Uint8Array}
  */
@@ -11,6 +20,43 @@ export function hash(input) {
     var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
     return v2;
+}
+
+/**
+ * Hash individual chunks starting at `start_chunk` counter.
+ * Returns concatenated 32-byte chaining values (one per chunk).
+ * Each chunk is up to CHUNK_LEN (1024) bytes. The last chunk may be shorter.
+ * @param {Uint8Array} input
+ * @param {number} start_chunk
+ * @returns {Uint8Array}
+ */
+export function hash_chunks(input, start_chunk) {
+    const ptr0 = passArray8ToWasm0(input, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.hash_chunks(ptr0, len0, start_chunk);
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+
+/**
+ * Compute a BLAKE3 parent chaining value from two child CVs.
+ * `left_cv` and `right_cv` must each be exactly 32 bytes.
+ * Set `is_root` to true only for the final (topmost) merge.
+ * @param {Uint8Array} left_cv
+ * @param {Uint8Array} right_cv
+ * @param {boolean} is_root
+ * @returns {Uint8Array}
+ */
+export function merge_cv_pair(left_cv, right_cv, is_root) {
+    const ptr0 = passArray8ToWasm0(left_cv, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(right_cv, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.merge_cv_pair(ptr0, len0, ptr1, len1, is_root);
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
 }
 
 function __wbg_get_imports() {
