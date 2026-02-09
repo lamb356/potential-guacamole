@@ -73,6 +73,31 @@
 
     .winner { background: #1a3a1a !important; }
     .loading { color: #888; }
+
+    .file-info {
+      text-align: center;
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #ccc;
+    }
+
+    .system-info {
+      background: #252540;
+      border-radius: 8px;
+      padding: 15px 20px;
+      margin-top: 25px;
+      font-size: 13px;
+      color: #888;
+      line-height: 1.8;
+    }
+    .system-info .info-title {
+      color: #ccc;
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .system-info span.val { color: #bbb; }
   </style>
 </head>
 <body>
@@ -124,9 +149,21 @@
     </div>
   </div>
 
+  <div class="file-info" id="file-info" style="display: none;"></div>
+
   <p id="status" class="loading" style="text-align: center; margin-top: 20px;">
     Loading WASM module...
   </p>
+
+  <!-- System Info — visible in screenshots -->
+  <div class="system-info" id="system-info">
+    <div class="info-title">System Info</div>
+    <div>Browser: <span class="val" id="info-browser">-</span></div>
+    <div>Platform: <span class="val" id="info-platform">-</span></div>
+    <div>CPU Cores: <span class="val" id="info-cores">-</span></div>
+    <div>BLAKE3 Mode: <span class="val" id="info-mode">loading...</span></div>
+    <div>Benchmark: <span class="val" id="info-timestamp">-</span></div>
+  </div>
 
   <!--
     ============================================================
@@ -181,6 +218,7 @@
           blake3Title.textContent = 'WASM BLAKE3 (4 threads)';
           status.textContent = 'Ready! Using parallel mode (4 threads).';
           status.style.color = '#4ade80';
+          document.getElementById('info-mode').textContent = 'Parallel (4 threads, SharedArrayBuffer + Web Workers)';
           return;
         } catch (err) {
           console.log('Parallel mode failed, trying single-threaded:', err.message);
@@ -202,6 +240,7 @@
         blake3Title.textContent = 'WASM BLAKE3 (single-threaded)';
         status.textContent = 'Ready! Using single-threaded mode.';
         status.style.color = '#fbbf24';
+        document.getElementById('info-mode').textContent = 'Single-threaded (WASM SIMD)';
       } catch (err) {
         status.textContent = 'Failed to load BLAKE3: ' + err.message;
         status.style.color = '#f87171';
@@ -230,7 +269,17 @@
     function formatSize(bytes) {
       if (bytes < 1024) return bytes + ' B';
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+      if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+      return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+    }
+
+    // Populate system info that doesn't depend on WASM init
+    function populateSystemInfo() {
+      document.getElementById('info-browser').textContent = navigator.userAgent;
+      document.getElementById('info-platform').textContent =
+        navigator.platform + (navigator.userAgentData ? ' (' + navigator.userAgentData.platform + ')' : '');
+      document.getElementById('info-cores').textContent =
+        navigator.hardwareConcurrency ? navigator.hardwareConcurrency + ' logical cores' : 'unknown';
     }
 
     // ============================================================
@@ -245,8 +294,12 @@
 
       const results = document.getElementById('results');
       const status = document.getElementById('status');
+      const fileInfo = document.getElementById('file-info');
       results.style.display = 'grid';
+      fileInfo.style.display = 'block';
+      fileInfo.textContent = `${file.name} — ${formatSize(file.size)}`;
       status.textContent = `Hashing ${file.name} (${formatSize(file.size)})...`;
+      document.getElementById('info-timestamp').textContent = new Date().toLocaleString();
 
       // Read file into memory
       const arrayBuffer = await file.arrayBuffer();
@@ -321,6 +374,7 @@
     });
 
     // Initialize on page load
+    populateSystemInfo();
     init();
   </script>
 </body>
