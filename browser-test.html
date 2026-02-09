@@ -114,6 +114,9 @@
 
   <!-- Side-by-side results -->
   <div class="results" id="results" style="display: none;">
+    <!-- Mode banner spanning both columns -->
+    <div id="mode-banner" style="grid-column: 1 / -1; text-align: center; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: bold;"></div>
+
     <!-- BLAKE3 Result -->
     <div class="result-card blake3" id="blake3-card">
       <h3 id="blake3-title">WASM BLAKE3</h3>
@@ -200,8 +203,19 @@
     async function init() {
       const status = document.getElementById('status');
       const blake3Title = document.getElementById('blake3-title');
+      const modeBanner = document.getElementById('mode-banner');
+
+      // Debug: log SharedArrayBuffer availability for Brave/Safari debugging
+      console.log('[BLAKE3] SharedArrayBuffer defined:', typeof SharedArrayBuffer !== 'undefined');
+      console.log('[BLAKE3] crossOriginIsolated:', self.crossOriginIsolated);
+      console.log('[BLAKE3] COOP header:', document.referrer !== undefined ? 'page loaded' : 'unknown');
 
       // Try parallel mode first (requires SharedArrayBuffer)
+      if (typeof SharedArrayBuffer === 'undefined') {
+        console.warn('[BLAKE3] SharedArrayBuffer is undefined — skipping parallel mode');
+        console.warn('[BLAKE3] crossOriginIsolated:', self.crossOriginIsolated,
+          '— COOP/COEP headers are required for SharedArrayBuffer');
+      }
       if (typeof SharedArrayBuffer !== 'undefined') {
         try {
           const module = await import('./blake3-wasm-rayon/pkg/blake3_wasm_rayon.js');
@@ -218,10 +232,15 @@
           blake3Title.textContent = 'WASM BLAKE3 (4 threads)';
           status.textContent = 'Ready! Using parallel mode (4 threads).';
           status.style.color = '#4ade80';
+          modeBanner.textContent = 'Parallel mode — 4 threads (SharedArrayBuffer + Web Workers)';
+          modeBanner.style.background = '#1a3a1a';
+          modeBanner.style.color = '#4ade80';
           document.getElementById('info-mode').textContent = 'Parallel (4 threads, SharedArrayBuffer + Web Workers)';
+          console.log('[BLAKE3] Initialized: parallel mode (4 threads)');
           return;
         } catch (err) {
-          console.log('Parallel mode failed, trying single-threaded:', err.message);
+          console.warn('[BLAKE3] Parallel mode failed:', err.message);
+          console.warn('[BLAKE3] Full error:', err);
         }
       }
 
@@ -240,7 +259,11 @@
         blake3Title.textContent = 'WASM BLAKE3 (single-threaded)';
         status.textContent = 'Ready! Using single-threaded mode.';
         status.style.color = '#fbbf24';
+        modeBanner.textContent = 'Single-threaded mode (WASM SIMD)';
+        modeBanner.style.background = '#3a2a1a';
+        modeBanner.style.color = '#fbbf24';
         document.getElementById('info-mode').textContent = 'Single-threaded (WASM SIMD)';
+        console.log('[BLAKE3] Initialized: single-threaded mode');
       } catch (err) {
         status.textContent = 'Failed to load BLAKE3: ' + err.message;
         status.style.color = '#f87171';
