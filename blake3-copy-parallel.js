@@ -81,7 +81,7 @@ export class CopyParallelHasher {
       const timeout = setTimeout(() => reject(new Error('Workers timed out')), 30000);
 
       for (let i = 0; i < NUM_WORKERS; i++) {
-        const worker = new Worker('./blake3-copy-worker.js', { type: 'module' });
+        const worker = new Worker('./blake3-copy-worker.js');
         worker.addEventListener('message', (e) => {
           if (e.data.type === 'ready') {
             readyCount++;
