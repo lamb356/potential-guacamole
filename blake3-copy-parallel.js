@@ -14,7 +14,7 @@
  * Produces the EXACT same hash as single-threaded blake3::hash().
  */
 
-const NUM_WORKERS = 4;
+const DEFAULT_NUM_WORKERS = 4;
 const CHUNK_LEN = 1024;
 const CV_LEN = 32;
 
@@ -53,7 +53,8 @@ function mergeTree(cvs, isRoot, mergeFn) {
 }
 
 export class CopyParallelHasher {
-  constructor() {
+  constructor(numWorkers = DEFAULT_NUM_WORKERS) {
+    this.numWorkers = numWorkers;
     this.workers = [];
     this.readyCount = 0;
     this._mergeFn = null; // merge_cv_pair from WASM
@@ -80,15 +81,15 @@ export class CopyParallelHasher {
       let readyCount = 0;
       const timeout = setTimeout(() => reject(new Error('Workers timed out')), 30000);
 
-      for (let i = 0; i < NUM_WORKERS; i++) {
+      for (let i = 0; i < this.numWorkers; i++) {
         console.log(`[Main] Spawning worker ${i}...`);
         const worker = new Worker('./blake3-copy-worker.js');
         worker.addEventListener('message', (e) => {
           console.log(`[Main] Message from worker ${i}:`, e.data);
           if (e.data.type === 'ready') {
             readyCount++;
-            console.log(`[Main] Worker ${i} ready (${readyCount}/${NUM_WORKERS})`);
-            if (readyCount === NUM_WORKERS) {
+            console.log(`[Main] Worker ${i} ready (${readyCount}/${this.numWorkers})`);
+            if (readyCount === this.numWorkers) {
               clearTimeout(timeout);
               resolve();
             }
@@ -123,10 +124,10 @@ export class CopyParallelHasher {
     }
 
     // Distribute chunks among workers
-    const chunksPerWorker = Math.ceil(totalChunks / NUM_WORKERS);
+    const chunksPerWorker = Math.ceil(totalChunks / this.numWorkers);
     const promises = [];
 
-    for (let i = 0; i < NUM_WORKERS; i++) {
+    for (let i = 0; i < this.numWorkers; i++) {
       const startChunk = i * chunksPerWorker;
       if (startChunk >= totalChunks) break; // No more data for this worker
 

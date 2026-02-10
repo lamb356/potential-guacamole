@@ -305,10 +305,12 @@
 
       // Try to initialize copy-parallel prototype (independent of mode above)
       try {
-        copyParallelHasher = new CopyParallelHasher();
+        const cpWorkerCount = 8;
+        copyParallelHasher = new CopyParallelHasher(cpWorkerCount);
         await copyParallelHasher.init();
         document.getElementById('copy-parallel-card').style.display = '';
-        console.log('[BLAKE3] Copy-parallel prototype initialized (4 workers)');
+        document.getElementById('cp-workers').textContent = cpWorkerCount + ' (postMessage transfer)';
+        console.log(`[BLAKE3] Copy-parallel prototype initialized (${cpWorkerCount} workers)`);
 
         // Self-test: compare both hash implementations on known inputs
         async function selfTest(label, input) {
