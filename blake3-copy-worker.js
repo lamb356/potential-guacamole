@@ -10,16 +10,13 @@
  *   Worker → Main: { type: 'ready' }
  */
 
-import init, { hash_chunks } from './blake3-wasm-single/pkg/blake3_wasm_single.js';
+importScripts('./blake3-wasm-single/pkg/blake3_wasm_single_classic.js');
 
 let isReady = false;
 
 async function initialize() {
   try {
-    const wasmResponse = await fetch('./blake3-wasm-single/pkg/blake3_wasm_single_bg.wasm');
-    const wasmBytes = await wasmResponse.arrayBuffer();
-    const wasmModule = await WebAssembly.compile(wasmBytes);
-    await init(wasmModule);
+    await wasm_bindgen('./blake3-wasm-single/pkg/blake3_wasm_single_bg.wasm');
     isReady = true;
     self.postMessage({ type: 'ready' });
   } catch (err) {
@@ -32,7 +29,7 @@ self.onmessage = (e) => {
   if (e.data.type === 'hash') {
     const { data, startChunk, workerId } = e.data;
     const input = new Uint8Array(data);
-    const cvs = hash_chunks(input, startChunk);
+    const cvs = wasm_bindgen.hash_chunks(input, startChunk);
     // cvs is a Uint8Array of concatenated 32-byte CVs
     // Copy to a transferable buffer
     const buf = new ArrayBuffer(cvs.length);
