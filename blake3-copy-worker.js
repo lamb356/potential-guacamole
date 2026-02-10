@@ -10,16 +10,28 @@
  *   Worker → Main: { type: 'ready' }
  */
 
-importScripts('./blake3-wasm-single/pkg/blake3_wasm_single_classic.js');
+console.log('[Worker] Script starting, self.location:', self.location.href);
+
+try {
+  importScripts('./blake3-wasm-single/pkg/blake3_wasm_single_classic.js');
+  console.log('[Worker] importScripts succeeded, typeof wasm_bindgen:', typeof wasm_bindgen);
+} catch (err) {
+  console.error('[Worker] importScripts FAILED:', err.message, err);
+  self.postMessage({ type: 'error', message: 'importScripts failed: ' + err.message });
+}
 
 let isReady = false;
 
 async function initialize() {
+  console.log('[Worker] initialize() called');
   try {
+    console.log('[Worker] Calling wasm_bindgen() to load WASM...');
     await wasm_bindgen('./blake3-wasm-single/pkg/blake3_wasm_single_bg.wasm');
+    console.log('[Worker] WASM loaded successfully');
     isReady = true;
     self.postMessage({ type: 'ready' });
   } catch (err) {
+    console.error('[Worker] WASM init FAILED:', err.message, err);
     self.postMessage({ type: 'error', message: err.message });
   }
 }

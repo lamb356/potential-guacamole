@@ -81,18 +81,25 @@ export class CopyParallelHasher {
       const timeout = setTimeout(() => reject(new Error('Workers timed out')), 30000);
 
       for (let i = 0; i < NUM_WORKERS; i++) {
+        console.log(`[Main] Spawning worker ${i}...`);
         const worker = new Worker('./blake3-copy-worker.js');
         worker.addEventListener('message', (e) => {
+          console.log(`[Main] Message from worker ${i}:`, e.data);
           if (e.data.type === 'ready') {
             readyCount++;
+            console.log(`[Main] Worker ${i} ready (${readyCount}/${NUM_WORKERS})`);
             if (readyCount === NUM_WORKERS) {
               clearTimeout(timeout);
               resolve();
             }
           } else if (e.data.type === 'error') {
+            console.error(`[Main] Worker ${i} error:`, e.data.message);
             clearTimeout(timeout);
             reject(new Error(`Worker ${i} failed: ${e.data.message}`));
           }
+        });
+        worker.addEventListener('error', (e) => {
+          console.error(`[Main] Worker ${i} uncaught error:`, e.message, 'filename:', e.filename, 'lineno:', e.lineno);
         });
         this.workers.push(worker);
       }
